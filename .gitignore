@@ -1,0 +1,21 @@
+# Secrets — hech qachon gitga tushmaydi
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Runtime fayllar (bot ishlatadi)
+bot.log
+logs/
+files/
+*.log
+
+# Foydalanuvchi ma'lumotlari (failback JSON)
+users.json
+admin.json
+
+# OS
+.DS_Store

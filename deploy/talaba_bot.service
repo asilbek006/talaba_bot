@@ -1,0 +1,21 @@
+[Unit]
+Description=TalabaBot — Telegram AI dokument bot
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=talaba
+Group=talaba
+WorkingDirectory=/opt/talaba_bot
+EnvironmentFile=/opt/talaba_bot/.env
+ExecStart=/opt/talaba_bot/.venv/bin/python /opt/talaba_bot/bot.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+
+# xavfsizlik: faqat shu fayllarni o'qish imkoni
+ReadWritePaths=/opt/talaba_bot/files /opt/talaba_bot/logs /opt/talaba_bot/bot.log
+
+[Install]
+WantedBy=multi-user.target
