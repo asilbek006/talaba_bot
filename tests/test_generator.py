@@ -52,6 +52,53 @@ def test_ppt_from_text_prompt_defined():
     assert "{text}" in gen.PPTX_FROM_TEXT_PROMPT
 
 
+def test_xlsx_exact_rows_when_overproduced(monkeypatch):
+    """Foydalanuvchi 200 so'rasa, Gemini 255 yuborsa — aynan 200 gacha kesiladi."""
+    fake = {"title": "T", "headers": ["a", "b"],
+            "rows": [[f"r{i}", i] for i in range(255)]}
+    monkeypatch.setattr(gen, "_ask_validated", lambda prompt, ok: fake)
+    out = gen.gen_xlsx("uz", "Mavzu", 200)
+    assert len(out["rows"]) == 200
+
+
+def test_xlsx_retry_on_mismatch(monkeypatch):
+    calls = []
+
+    def fake(prompt, ok):
+        calls.append(prompt)
+        n = len(calls)
+        rows = [[f"r{i}", i] for i in range(10)] if n == 1 else [[f"r{i}", i] for i in range(5)]
+        return {"title": "T", "headers": ["a"], "rows": rows}
+
+    monkeypatch.setattr(gen, "_ask_validated", fake)
+    out = gen.gen_xlsx("uz", "Mavzu", 5)
+    assert len(calls) == 2
+    assert len(out["rows"]) == 5
+
+
+def test_referat_retries_when_short(monkeypatch):
+    words = ["kalima"] * 400
+    calls = []
+
+    def fake_ask(prompt, ok):
+        calls.append(prompt)
+        return {"title": "T", "sections": [
+            {"heading": "Kirish", "paragraphs": words},
+            {"heading": "Xulosa", "paragraphs": words}]}
+
+    monkeypatch.setattr(gen, "_ask_validated", fake_ask)
+    # 30 sahifa -> kamida 0.8 * 29*300 ~ 6960 so'z kerak, bu yerda 800 ta — qoltadan qayta so'raladi
+    out = gen.gen_referat("uz", "Mavzu", 30)
+    assert len(calls) >= 2
+    assert out["title"] == "T"
+
+
+def test_word_count_helper():
+    data = {"sections": [{"paragraphs": ["bir ikki uch", "to'rt besh"]},
+                          {"paragraphs": ["olti"]}]}
+    assert gen._word_count(data) == 6
+
+
 def test_ask_validated_valid(monkeypatch):
     calls = []
 

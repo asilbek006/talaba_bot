@@ -112,6 +112,7 @@ LANGS = {
         "ask_slides": "Nechta slayd kerak? (3–30)",
         "ask_rows": "Jadvalda qatorlar soni? (5–200)",
         "bad_number": "Faqat son kiriting.",
+        "bad_range": "Faqat {lo} dan {hi} gacha son kiriting.",
         "bad_topic": "Mavzu juda qisqa. Batafsilroq yozing.",
         "working": "⏳ Tayyorlanmoqda. Odatda 1–3 daqiqa kerak boʻladi...",
         "done_ref": "✅ Referat tayyor!",
@@ -246,6 +247,7 @@ LANGS = {
         "ask_slides": "Сколько слайдов нужно? (3–30)",
         "ask_rows": "Сколько строк в таблице? (5–200)",
         "bad_number": "Введите только число.",
+        "bad_range": "Введите число от {lo} до {hi}.",
         "bad_topic": "Тема слишком короткая. Напишите подробнее.",
         "working": "⏳ Готовится. Обычно нужно 1–3 минуты...",
         "done_ref": "✅ Реферат готов!",
@@ -380,6 +382,7 @@ LANGS = {
         "ask_slides": "How many slides? (3–30)",
         "ask_rows": "How many rows? (5–200)",
         "bad_number": "Please enter a number only.",
+        "bad_range": "Please enter a number between {lo} and {hi}.",
         "bad_topic": "The topic is too short. Please add more detail.",
         "working": "⏳ Generating. Usually takes 1–3 minutes...",
         "done_ref": "✅ Essay ready!",
@@ -409,4 +412,8 @@ DEFAULT_LANG = "uz"
 def t(lang: str, key: str, **kw) -> str:
     row = LANGS.get(lang) or LANGS[DEFAULT_LANG]
     text = row.get(key) or LANGS[DEFAULT_LANG].get(key) or key
-    return text.format(**kw) if kw else text
+    if not kw:
+        return text
+    from html import escape
+    kw = {k: escape(str(v)) for k, v in kw.items()}
+    return text.format(**kw)

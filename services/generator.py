@@ -18,7 +18,7 @@ Til: {lang}
 Hajm talablari (qatʼiy bajar):
 - Jami matn {words} soʼz atrofida boʼlsin (sezilarli oshmasin ham, kam boʼlmasin ham)
 - {sections} ta boʼlim boʼlsin
-- Har bir boʼlim {words_per_section} soʼz atrofida, 2 ta paragrafdan iborat boʼlsin
+- Har bir boʼlim {words_per_section} soʼz atrofida, 2-4 ta paragrafdan iborat boʼlsin
 Boʼlimlar tartibi: kirish, asosiy qism (mavzuga qarab 2-5 boʼlim), xulosa, adabiyotlar roʼyxati.
 Matn quruq boʼlmasin, misollar va tahlil boʼlsin, nusxalashga oʻxshamasin, tabiiy akademik uslubda yozilsin.
 ADABIYOTLAR: faqat shu mavzu boʼyicha haqiqatda mavjud boʼlgan manbalarni koʼrsating.
@@ -55,7 +55,7 @@ Boshqa hech narsa yozma."""
 XLSX_PROMPT = """Sen maʼlumotlar jadvalini tayyorlaydigan mutaxassissan.
 Mavzu: "{topic}"
 Til: {lang}
-Kamida {rows} ta qator boʼlsin. Ustunlar mazmunga mos boʻlsin (2-6 ta ustun).
+Aynan {rows} ta qator boʼlsin. Ustunlar mazmunga mos boʻlsin (2-6 ta ustun).
 Maʼlumotlar real va foydali boʻlsin, taxminiy raqamlar boʻlsa "≈" belgisi bilan yozilsin.
 Javobni FAQAT sof JSON koʻrinishida qaytar:
 {{
@@ -140,9 +140,9 @@ def _ref_ok(data) -> bool:
 
 def gen_referat(lang: str, topic: str, pages: int) -> dict:
     content_pages = max(pages - 1, 1)
-    words = content_pages * 200
-    sections = min(7, max(3, pages // 2 + 1))
-    words_per_section = max(120, words // sections)
+    words = content_pages * 300
+    sections = min(14, max(4, pages // 2 + 1))
+    words_per_section = max(150, words // sections)
     prompt = REFERAT_PROMPT.format(
         topic=topic, lang=LANG_NAMES.get(lang, lang),
         words=words, sections=sections, words_per_section=words_per_section)
@@ -150,6 +150,11 @@ def gen_referat(lang: str, topic: str, pages: int) -> dict:
     if not _topic_ok(topic, data):
         data = _ask_validated(prompt + f'\nMuhim: oldingi javobing "{topic}" mavzusiga mos emas edi. '
                                        'Aynan shu mavzu haqida qayta yoz, boshqa narsaga o\'tma!', _ref_ok)
+    if _word_count(data) < int(words * 0.8):
+        data = _ask_validated(prompt +
+                              f"\nMuhim: hozircha {_word_count(data)} ta so'z bor, "
+                              f"kamida {words} ta so'z bo'lishi kerak. Bo'limlarni to'ldirib, matnni uzaytir!",
+                              _ref_ok)
     refs = data.get("references")
     if refs:
         literature = [r for r in map(str, refs) if r.strip()]
@@ -159,6 +164,11 @@ def gen_referat(lang: str, topic: str, pages: int) -> dict:
     data.setdefault("title", topic)
     data.setdefault("sections", [])
     return data
+
+
+def _word_count(data: dict) -> int:
+    return sum(len(str(p).split())
+               for s in data.get("sections", []) for p in s.get("paragraphs", []))
 
 
 def _ppt_ok(data) -> bool:
@@ -192,11 +202,15 @@ def _xls_ok(data) -> bool:
 
 
 def gen_xlsx(lang: str, topic: str, rows: int) -> dict:
-    data = _ask_validated(
-        XLSX_PROMPT.format(topic=topic, lang=LANG_NAMES.get(lang, lang), rows=rows), _xls_ok)
+    prompt = XLSX_PROMPT.format(topic=topic, lang=LANG_NAMES.get(lang, lang), rows=rows)
+    data = _ask_validated(prompt, _xls_ok)
+    if len(data.get("rows", [])) != rows:
+        data = _ask_validated(prompt +
+                              f"\nMuhim: oldingi javobda {len(data.get('rows', []))} ta qator keldi, "
+                              f"aynan {rows} ta qator kerak edi.", _xls_ok)
+    data["rows"] = data.get("rows", [])[:rows]
     data.setdefault("title", topic)
     data.setdefault("headers", [])
-    data.setdefault("rows", [])
     return data
 
 

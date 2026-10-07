@@ -30,3 +30,18 @@ def test_format_placeholders_match():
         for lang in i18n.LANGS:
             theirs = set(re.findall(r"\{(\w+)\}", i18n.LANGS[lang].get(key, "")))
             assert theirs == placeholders, f"{key}: {lang} placeholder farqi {theirs} vs {placeholders}"
+
+
+def test_t_escapes_dynamic_html():
+    """t() qo'shish orqali uzatilgan qiymatlar HTML parse'dan buzilmasligi kerak."""
+    for lang in i18n.LANGS:
+        out = i18n.t(lang, "pay_manual", card="6262<&>5585", holder="A & B",
+                     amount="50 000", days=30, w=5, s=3)
+        assert "<code>6262&lt;&amp;&gt;5585</code>" in out
+        assert "A &amp; B" in out
+
+
+def test_bad_range_key():
+    for lang in i18n.LANGS:
+        out = i18n.t(lang, "bad_range", lo=3, hi=30)
+        assert "3" in out and "30" in out

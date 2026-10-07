@@ -6,6 +6,7 @@ from pathlib import Path
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -155,6 +156,11 @@ async def user_name(uid: int) -> str:
     if not u:
         return str(uid)
     return u.get("name") or u.get("username") or str(uid)
+
+
+def esc(v) -> str:
+    from html import escape
+    return escape(str(v))
 
 
 async def ctx(state: FSMContext, uid: int) -> dict:
@@ -560,7 +566,7 @@ async def on_pay_proof(message: Message, state: FSMContext, bot: Bot):
     uname = await user_name(message.from_user.id)
     caption = (
         "💰 Toʻlov cheki\n"
-        f"👤 {uname} (ID: {message.from_user.id})\n"
+        f"👤 {esc(uname)} (ID: {message.from_user.id})\n"
         f"💳 {info['card']}\n"
         f"💵 {info['amount']} soʻm\n"
         f"📦 {config.PREMIUM_DAYS} kun Pro")
@@ -643,7 +649,7 @@ async def on_count(message: Message, state: FSMContext, bot: Bot):
         await message.answer(t(lang, "bad_number"))
         return
     if not (lo <= n <= hi):
-        await message.answer(t(lang, "bad_number"))
+        await message.answer(t(lang, "bad_range", lo=lo, hi=hi))
         return
     await state.update_data(count=n)
     await generate(message, state, message.from_user.id, bot)
@@ -788,9 +794,9 @@ def quiz_analysis_text(quiz: dict, lang: str) -> str:
             if isinstance(ans, int) and 0 <= ans < len(d["opts"]) else "-"
         mark = "✅" if d.get("ok") else "❌"
         q = str(d.get("q") or "")[:70]
-        lines.append(f"{mark} {i}. {q}")
-        lines.append(f"   Siz: {given_txt}")
-        lines.append(f"   To'g'ri: {ans_txt}")
+        lines.append(f"{mark} {i}. {esc(q)}")
+        lines.append(f"   Siz: {esc(given_txt)}")
+        lines.append(f"   To'g'ri: {esc(ans_txt)}")
     wrong = [d for d in detail if not d.get("ok")]
     lines.append("")
     if wrong:
@@ -855,7 +861,9 @@ async def on_quiz_count(message: Message, state: FSMContext):
     except Exception:
         await message.answer(t(lang, "bad_number"))
         return
-    n = max(1, min(n, len(bank)))
+    if not (lo <= n <= len(bank)):
+        await message.answer(t(lang, "bad_range", lo=lo, hi=len(bank)))
+        return
     await state.update_data(quiz_n=n)
     await state.set_state(St.quiz_time)
     await message.answer(t(lang, "quiz_time"))
@@ -870,7 +878,9 @@ async def on_quiz_time(message: Message, state: FSMContext):
     except Exception:
         await message.answer(t(lang, "bad_number"))
         return
-    mins = max(1, min(mins, 120))
+    if not (1 <= mins <= 120):
+        await message.answer(t(lang, "bad_range", lo=1, hi=120))
+        return
     quiz = {
         "qs": data["quiz_bank"][:data["quiz_n"]],
         "i": 0,
@@ -1181,7 +1191,9 @@ async def on_slides_count(message: Message, state: FSMContext, bot: Bot):
     except Exception:
         await message.answer(t(lang, "bad_number"))
         return
-    n = max(3, min(n, 20))
+    if not (3 <= n <= 20):
+        await message.answer(t(lang, "bad_range", lo=3, hi=20))
+        return
     if await try_busy(message.from_user.id, message, state):
         return
     try:
@@ -1483,7 +1495,7 @@ async def main():
     if not config.BOT_TOKEN:
         raise SystemExit("TELEGRAM_BOT_TOKEN topilmadi — .env faylini toʻldiring")
     await db.init()
-    bot = Bot(config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=None))
+    bot = Bot(config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=PostgresStorage())
     dp.include_router(router)
     await bot.set_my_commands([
