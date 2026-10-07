@@ -686,6 +686,7 @@ async def _generate(target: Message, state: FSMContext, uid: int, bot: Bot):
             await asyncio.to_thread(docs.build_referat, content, lang, path)
         elif mode == "ppt":
             content = await call_ai(target, state, gen.gen_pptx, lang, topic, n)
+            content = await call_ai(target, state, gen.add_ppt_images, content)
             await asyncio.to_thread(docs.build_pptx, content, lang, path)
         elif mode == "xls":
             content = await call_ai(target, state, gen.gen_xlsx, lang, topic, n)
@@ -699,7 +700,10 @@ async def _generate(target: Message, state: FSMContext, uid: int, bot: Bot):
         await consume_quota(uid, kind)
         await keep(uid, mode, topic, path)
         await delete_quietly(wait)
-        await send_file(target, path, t(lang, MODES[mode]["done"]), kb_after(lang))
+        caption = t(lang, MODES[mode]["done"])
+        if mode == "ppt" and content.get("image_failures", 0):
+            caption += "\n" + t(lang, "ppt_images_missing", count=content["image_failures"])
+        await send_file(target, path, caption, kb_after(lang))
         await notify_admin(
             bot,
             f"✅ Tayyor — {MODE_NAMES[mode]}\n👤 {uname} (ID: {uid})\n"
@@ -1208,12 +1212,16 @@ async def _run_docx2ppt(message: Message, state: FSMContext, bot: Bot, lang, n, 
     wait = await message.answer(t(lang, "working"))
     try:
         content = await call_ai(message, state, gen.gen_ppt_from_text, lang, data["ppt_text"], n)
+        content = await call_ai(message, state, gen.add_ppt_images, content)
         path = user_dir(message.from_user.id) / f"conv_{int(time.time())}.pptx"
         await asyncio.to_thread(docs.build_pptx, content, lang, path)
         await keep(message.from_user.id, "docx2ppt", Path(data["ppt_src"]).stem, path)
         await consume_quota(message.from_user.id, "slide")
         await delete_quietly(wait)
-        await send_file(message, path, t(lang, "done_pptx"), kb_back(lang))
+        caption = t(lang, "done_pptx")
+        if content.get("image_failures", 0):
+            caption += "\n" + t(lang, "ppt_images_missing", count=content["image_failures"])
+        await send_file(message, path, caption, kb_back(lang))
         await state.set_state(None)
     except Exception as e:
         await delete_quietly(wait)

@@ -1,4 +1,5 @@
 import re
+from io import BytesIO
 from pathlib import Path
 
 import openpyxl
@@ -12,7 +13,10 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from pptx import Presentation
 from pptx.dml.color import RGBColor
+from pptx.enum.text import MSO_AUTO_SIZE
 from pptx.util import Inches, Pt as PPt
+
+from services.image_utils import normalize_ppt_image
 
 DARK = RGBColor(0x1E, 0x2A, 0x5A)
 ACCENT = RGBColor(0xF2, 0xC9, 0x4C)
@@ -124,6 +128,57 @@ def _add_box(slide, x, y, w, h, color):
     return shape
 
 
+def _add_picture_cropped(slide, image_bytes, x, y, width, height):
+    """Add an image in a fixed frame without stretching its aspect ratio."""
+    if not image_bytes:
+        return False
+    try:
+        from PIL import Image
+
+        image_bytes = normalize_ppt_image(image_bytes)
+        with Image.open(BytesIO(image_bytes)) as image:
+            image_ratio = image.width / image.height
+        frame_ratio = width / height
+        picture = slide.shapes.add_picture(BytesIO(image_bytes), x, y, width=width, height=height)
+        if image_ratio > frame_ratio:
+            crop = (1 - frame_ratio / image_ratio) / 2
+            picture.crop_left = picture.crop_right = crop
+        else:
+            crop = (1 - image_ratio / frame_ratio) / 2
+            picture.crop_top = picture.crop_bottom = crop
+        return True
+    except Exception:
+        return False
+
+
+def _add_slide_bullets(slide, bullets, x, y, width, height, accent, base_size=20):
+    bullets = bullets or [""]
+    row_height = height / len(bullets)
+    for index, bullet in enumerate(bullets):
+        top = y + row_height * index
+        marker = slide.shapes.add_textbox(x, top, Inches(0.3), row_height)
+        p = marker.text_frame.paragraphs[0]
+        p.text = "●"
+        p.font.name = "Arial"
+        p.font.size = PPt(max(12, base_size - 2))
+        p.font.bold = True
+        p.font.color.rgb = accent
+
+        box = slide.shapes.add_textbox(x + Inches(0.38), top, width - Inches(0.4), row_height)
+        tf = box.text_frame
+        tf.clear()
+        tf.word_wrap = True
+        tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+        tf.margin_left = tf.margin_right = Inches(0.04)
+        tf.margin_top = Inches(0.02)
+        tf.margin_bottom = Inches(0.02)
+        p = tf.paragraphs[0]
+        p.text = bullet
+        p.font.name = "Arial"
+        p.font.size = PPt(base_size)
+        p.font.color.rgb = RGBColor(0x2B, 0x2B, 0x2B)
+
+
 def build_pptx(data: dict, lang: str, path: Path) -> Path:
     prs = Presentation()
     prs.slide_width = Inches(13.333)
@@ -143,18 +198,21 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
         notes = str(s.get("notes", "")).strip()
         total_len = sum(len(b) for b in bullets)
         body_size = 20 if total_len <= 380 else (17 if total_len <= 550 else 15)
+        image = s.get("image_bytes")
 
         if idx == 0:
             _add_box(slide, 0, 0, W, H, DARK)
-            _add_box(slide, 0, H - Inches(0.35), W, Inches(0.35), ACCENT)
-            tb = slide.shapes.add_textbox(Inches(1), Inches(2.4), W - Inches(2), Inches(2.2))
+            _add_box(slide, 0, 0, Inches(0.16), H, ACCENT)
+            _add_picture_cropped(slide, image, Inches(7.0), 0, W - Inches(7.0), H)
+            _add_box(slide, 0, H - Inches(0.18), W, Inches(0.18), ACCENT)
+            tb = slide.shapes.add_textbox(Inches(0.8), Inches(1.65), Inches(5.7), Inches(3.8))
             tf = tb.text_frame
             tf.word_wrap = True
             p = tf.paragraphs[0]
             p.alignment = 1
             r = p.add_run()
             r.text = str(data.get("title", title))
-            r.font.size = PPt(44)
+            r.font.size = PPt(38)
             r.font.bold = True
             r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
             r.font.name = "Arial"
@@ -169,43 +227,47 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
                 r2.font.color.rgb = ACCENT
                 r2.font.name = "Arial"
         else:
-            _add_box(slide, 0, 0, W, Inches(1.15), DARK)
-            _add_box(slide, 0, Inches(1.15), W, Inches(0.08), ACCENT)
-            tb = slide.shapes.add_textbox(Inches(0.6), Inches(0.18), W - Inches(1.2), Inches(0.85))
+            layout = (idx - 1) % 3
+            background = RGBColor(0xF5, 0xF7, 0xFB) if layout != 1 else RGBColor(0xFF, 0xFF, 0xFF)
+            _add_box(slide, 0, 0, W, H, background)
+            if layout == 0:
+                _add_box(slide, 0, 0, W, Inches(1.15), DARK)
+                _add_box(slide, 0, Inches(1.15), W, Inches(0.08), ACCENT)
+                image_x, text_x = Inches(7.25), Inches(0.65)
+                image_y, image_w, image_h = Inches(1.55), Inches(5.45), Inches(5.25)
+                text_y, text_w, text_h = Inches(1.65), Inches(6.05), Inches(5.05)
+                title_color = RGBColor(0xFF, 0xFF, 0xFF)
+                title_y, title_x = Inches(0.18), Inches(0.65)
+            elif layout == 1:
+                _add_box(slide, 0, 0, Inches(0.18), H, ACCENT)
+                image_x, text_x = Inches(0.65), Inches(6.55)
+                image_y, image_w, image_h = Inches(1.65), Inches(5.35), Inches(5.15)
+                text_y, text_w, text_h = Inches(1.75), Inches(6.05), Inches(4.95)
+                title_color = DARK
+                title_y, title_x = Inches(0.38), Inches(0.72)
+            else:
+                _add_box(slide, 0, 0, W, Inches(0.12), ACCENT)
+                image_x, image_y = Inches(2.45), Inches(1.25)
+                image_w, image_h = Inches(8.45), Inches(2.45)
+                text_x, text_y = Inches(0.8), Inches(3.95)
+                text_w, text_h = W - Inches(1.6), Inches(3.0)
+                title_color = DARK
+                title_y, title_x = Inches(0.25), Inches(0.8)
+
+            tb = slide.shapes.add_textbox(title_x, title_y, W - title_x - Inches(0.8), Inches(0.85))
             tf = tb.text_frame
             tf.word_wrap = True
             p = tf.paragraphs[0]
             r = p.add_run()
             r.text = title
-            r.font.size = PPt(30)
+            r.font.size = PPt(28 if layout == 0 else 30)
             r.font.bold = True
-            r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+            r.font.color.rgb = title_color
             r.font.name = "Arial"
 
-            body = slide.shapes.add_textbox(Inches(0.7), Inches(1.7), W - Inches(1.6), H - Inches(2.6))
-            tf = body.text_frame
-            tf.word_wrap = True
-            for bi, b in enumerate(bullets):
-                p = tf.paragraphs[0] if bi == 0 else tf.add_paragraph()
-                p.space_after = PPt(8) if body_size < 20 else PPt(12)
-                glyph = p.add_run()
-                glyph.text = "▸  "
-                glyph.font.size = PPt(body_size)
-                glyph.font.bold = True
-                glyph.font.color.rgb = ACCENT
-                glyph.font.name = "Arial"
-                r = p.add_run()
-                r.text = b
-                r.font.size = PPt(body_size)
-                r.font.color.rgb = RGBColor(0x2B, 0x2B, 0x2B)
-                r.font.name = "Arial"
-            if not bullets and notes:
-                p = tf.paragraphs[0]
-                r = p.add_run()
-                r.text = notes
-                r.font.size = PPt(18)
-                r.font.color.rgb = GRAY
-                r.font.name = "Arial"
+            _add_picture_cropped(slide, image, image_x, image_y, image_w, image_h)
+            _add_slide_bullets(slide, bullets, text_x, text_y, text_w, text_h,
+                               ACCENT, base_size=min(body_size, 18 if layout == 2 else body_size))
 
             num = slide.shapes.add_textbox(W - Inches(1.2), H - Inches(0.55), Inches(0.9), Inches(0.4))
             p = num.text_frame.paragraphs[0]
@@ -213,7 +275,7 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
             r = p.add_run()
             r.text = str(idx + 1)
             r.font.size = PPt(14)
-            r.font.color.rgb = GRAY
+            r.font.color.rgb = GRAY if layout != 0 else RGBColor(0xFF, 0xFF, 0xFF)
             r.font.name = "Arial"
 
             ft = slide.shapes.add_textbox(Inches(0.4), H - Inches(0.55), Inches(4), Inches(0.4))
@@ -221,7 +283,7 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
             r = p.add_run()
             r.text = THANKS.get(lang, "") if idx == len(slides) - 1 else ""
             r.font.size = PPt(14)
-            r.font.color.rgb = GRAY
+            r.font.color.rgb = GRAY if layout != 0 else RGBColor(0xFF, 0xFF, 0xFF)
             r.font.name = "Arial"
 
         if notes:
