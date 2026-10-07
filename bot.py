@@ -543,7 +543,8 @@ async def cb_premium_buy(call: CallbackQuery, state: FSMContext):
     await state.set_state(St.pay_photo)
     await safe_edit(call.message, t(
         lang, "pay_manual", card=info["card"], holder=info["holder"],
-        amount=info["amount"], days=config.PREMIUM_DAYS), kb_back(lang))
+        amount=info["amount"], days=config.PREMIUM_DAYS,
+        w=config.PRO_WORD, s=config.PRO_SLIDE), kb_back(lang))
     await call.answer()
 
 
