@@ -2,7 +2,7 @@
 
 ## Xizmatlar
 - 📄 **Referat (DOCX)** — mavzu + sahifalar soni → Word fayl (muqova, boʻlimlar, adabiyotlar, sahifa raqamlari)
-- 🎤 **Prezentatsiya (PPTX)** — mavzu + slaydlar soni → turli joylashuvdagi PowerPoint slaydlari, mazmunga mos Gemini rasmlari va speaker notes
+- 🎤 **Prezentatsiya (PPTX)** — mavzu + slaydlar soni → turli joylashuvdagi PowerPoint slaydlari, har slaydga bepul mavzuga mos rasm (Commons/Pollinations) va speaker notes
 - 📊 **Jadval (XLSX)** — mavzu + qatorlar soni → Excel (formatlangan jadval + avtomatik grafik)
 - 📋 **Test savollari (DOCX)** — mavzu + savollar soni → Word (javoblari bilan)
 - 🧩 **Quiz** — Word savolbank yuklaysiz, bot interaktiv test oʻtkazadi (vaqt bilan)
@@ -57,7 +57,6 @@ Kodga parol/token yozmaymiz — hammasi `.env`da:
 TELEGRAM_BOT_TOKEN=123456789:...
 GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-2.5-flash
-GEMINI_IMAGE_MODEL=gemini-nano-banana-2.1
 ADMIN_IDS=123456789,987654321        # admin Telegram ID lari (vergul bilan)
 ADMIN_SECRET=                         # ixtiyoriy bir martalik kod
 DATABASE_URL=postgresql://talaba_bot:KuchliParol123@localhost:5432/talaba_bot
@@ -65,7 +64,7 @@ DAILY_LIMIT=2                         # bepul rejimda kunlik AI hujjatlar
 GEMINI_MAX_CONCURRENT=2               # bir vaqtda Gemini soʻrovlari soni
 ```
 `.env` hech qachon git/qonga tushmasligi kerak (`.gitignore`da).
-`GEMINI_IMAGE_MODEL` har bir slaydga alohida rasm yaratadi. Bu qoʻshimcha Gemini API soʻrovlari va xarajatini keltirib chiqarishi mumkin.
+Slaydlarga ramlar qoʻshimcha kalitsiz — Wikimedia Commons va Pollinations orqali bepul yuklanadi.
 
 ### 5. systemd xizmati
 `deploy/talaba_bot.service` ni moslang (User, papka yoʻli) va:

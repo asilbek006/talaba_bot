@@ -18,6 +18,7 @@ import db
 import services.convert as conv
 import services.documents as docs
 import services.generator as gen
+import services.images as images_mod
 import services.pdf as pdf_tool
 import services.payments as payments
 import services.quiz as quiz_tool
@@ -686,7 +687,7 @@ async def _generate(target: Message, state: FSMContext, uid: int, bot: Bot):
             await asyncio.to_thread(docs.build_referat, content, lang, path)
         elif mode == "ppt":
             content = await call_ai(target, state, gen.gen_pptx, lang, topic, n)
-            content = await call_ai(target, state, gen.add_ppt_images, content)
+            content = await asyncio.to_thread(images_mod.add_ppt_images, content)
             await asyncio.to_thread(docs.build_pptx, content, lang, path)
         elif mode == "xls":
             content = await call_ai(target, state, gen.gen_xlsx, lang, topic, n)
@@ -1212,7 +1213,7 @@ async def _run_docx2ppt(message: Message, state: FSMContext, bot: Bot, lang, n, 
     wait = await message.answer(t(lang, "working"))
     try:
         content = await call_ai(message, state, gen.gen_ppt_from_text, lang, data["ppt_text"], n)
-        content = await call_ai(message, state, gen.add_ppt_images, content)
+        content = await asyncio.to_thread(images_mod.add_ppt_images, content)
         path = user_dir(message.from_user.id) / f"conv_{int(time.time())}.pptx"
         await asyncio.to_thread(docs.build_pptx, content, lang, path)
         await keep(message.from_user.id, "docx2ppt", Path(data["ppt_src"]).stem, path)

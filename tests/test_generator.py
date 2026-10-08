@@ -133,3 +133,13 @@ def test_ask_validated_gives_up(monkeypatch):
     with pytest.raises(RuntimeError):
         gen._ask_validated("p", gen._ppt_ok)
     assert len(calls) == 2
+
+def test_pptx_prompts_have_diversity_rules():
+    assert "XILMA-XILLIK" in gen.PPTX_PROMPT
+    assert "XILMA-XILLIK" in gen.PPTX_FROM_TEXT_PROMPT
+
+
+def test_pptx_prompts_ask_for_image_hint():
+    for p in (gen.PPTX_PROMPT, gen.PPTX_FROM_TEXT_PROMPT):
+        assert "image_hint" in p
+        assert "inglizcha" in p

@@ -114,3 +114,61 @@ def test_build_text_docx(tmp_path):
     paras = ["Oddiy paragraf.", "## Sarlavha", "Yana matn"]
     out = docs.build_text_docx(paras, "Sarlavha", tmp_path / "txt.docx")
     assert out.exists()
+
+def test_build_test_docx_state_format(tmp_path):
+    questions = [{"q": "Savol?", "options": ["A1", "B1", "C1", "D1"], "answer": 0}]
+    out = docs.build_test_docx(questions, "uz", tmp_path / "t.docx")
+    doc = Document(out)
+    sec = doc.sections[0]
+    from docx.shared import Cm, Pt
+    assert abs(sec.left_margin - Cm(3)) < 5000
+    assert abs(sec.right_margin - Cm(1.5)) < 5000
+    normal = doc.styles["Normal"]
+    assert normal.font.size == Pt(14)
+    q_para = next(p for p in doc.paragraphs if p.text.startswith("1."))
+    assert q_para.paragraph_format.line_spacing == 1.5
+
+
+def test_build_text_docx_state_format(tmp_path):
+    out = docs.build_text_docx(["Matn."], "Sarlavha", tmp_path / "t2.docx")
+    doc = Document(out)
+    from docx.shared import Cm, Pt
+    assert doc.styles["Normal"].font.size == Pt(14)
+    body = next(p for p in doc.paragraphs if p.text == "Matn.")
+    assert body.paragraph_format.line_spacing == 1.5
+    assert abs(body.paragraph_format.first_line_indent - Cm(1.25)) < 5000
+
+
+def test_build_pptx_state_format_and_image(tmp_path):
+    from io import BytesIO
+
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", (320, 180), (200, 60, 60)).save(buf, format="PNG")
+    data = {
+        "title": "Mavzu",
+        "slides": [
+            {"title": "Muqova", "bullets": [], "notes": ""},
+            {"title": "Sahna", "bullets": ["Birinchi", "Ikkinchi"], "notes": "N",
+             "image_bytes": buf.getvalue()},
+        ],
+    }
+    out = docs.build_pptx(data, "uz", tmp_path / "s.pptx")
+    prs = Presentation(out)
+    assert len(prs.slides) == 2
+    body_slide = prs.slides[1]
+    sizes, spacings, pictures = set(), set(), 0
+    for sh in body_slide.shapes:
+        if sh.shape_type == 13:
+            pictures += 1
+        if sh.has_text_frame:
+            for para in sh.text_frame.paragraphs:
+                for r in para.runs:
+                    if r.font.size:
+                        sizes.add(r.font.size.pt)
+                if para.line_spacing:
+                    spacings.add(para.line_spacing)
+    assert pictures == 1
+    assert 14.0 in sizes
+    assert 1.5 in spacings

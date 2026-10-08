@@ -151,7 +151,7 @@ def _add_picture_cropped(slide, image_bytes, x, y, width, height):
         return False
 
 
-def _add_slide_bullets(slide, bullets, x, y, width, height, accent, base_size=20):
+def _add_slide_bullets(slide, bullets, x, y, width, height, accent, base_size=14):
     bullets = bullets or [""]
     row_height = height / len(bullets)
     for index, bullet in enumerate(bullets):
@@ -174,6 +174,7 @@ def _add_slide_bullets(slide, bullets, x, y, width, height, accent, base_size=20
         tf.margin_bottom = Inches(0.02)
         p = tf.paragraphs[0]
         p.text = bullet
+        p.line_spacing = 1.5
         p.font.name = "Arial"
         p.font.size = PPt(base_size)
         p.font.color.rgb = RGBColor(0x2B, 0x2B, 0x2B)
@@ -196,8 +197,6 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
         bullets = [re.sub(r"^\s*\d+[.)]\s*", "", str(b).strip())
                    for b in s.get("bullets", []) if str(b).strip()]
         notes = str(s.get("notes", "")).strip()
-        total_len = sum(len(b) for b in bullets)
-        body_size = 20 if total_len <= 380 else (17 if total_len <= 550 else 15)
         image = s.get("image_bytes")
 
         if idx == 0:
@@ -267,7 +266,7 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
 
             _add_picture_cropped(slide, image, image_x, image_y, image_w, image_h)
             _add_slide_bullets(slide, bullets, text_x, text_y, text_w, text_h,
-                               ACCENT, base_size=min(body_size, 18 if layout == 2 else body_size))
+                               ACCENT, base_size=14)
 
             num = slide.shapes.add_textbox(W - Inches(1.2), H - Inches(0.55), Inches(0.9), Inches(0.4))
             p = num.text_frame.paragraphs[0]
@@ -374,10 +373,12 @@ def build_test_docx(questions: list[dict], lang: str, path: Path) -> Path:
     doc = Document()
     sec = doc.sections[0]
     sec.top_margin = sec.bottom_margin = Cm(2)
-    sec.left_margin = sec.right_margin = Cm(2.5)
+    sec.left_margin = Cm(3)
+    sec.right_margin = Cm(1.5)
     normal = doc.styles["Normal"]
     normal.font.name = "Times New Roman"
-    normal.font.size = Pt(13)
+    normal.font.size = Pt(14)
+    normal.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -388,14 +389,15 @@ def build_test_docx(questions: list[dict], lang: str, path: Path) -> Path:
         p = doc.add_paragraph()
         p.paragraph_format.space_before = Pt(8)
         p.paragraph_format.space_after = Pt(2)
-        _set_font(p.add_run(f"{i}. {q.get('q', '')}"), size=13, bold=True)
+        p.paragraph_format.line_spacing = 1.5
+        _set_font(p.add_run(f"{i}. {q.get('q', '')}"), size=14, bold=True)
         letters = "ABCDEFGH"
         for oi, opt in enumerate(q.get("options", [])):
             p = doc.add_paragraph()
             p.paragraph_format.left_indent = Cm(0.6)
             p.paragraph_format.space_after = Pt(0)
-            p.paragraph_format.line_spacing = 1.15
-            _set_font(p.add_run(f"{letters[oi]}) {opt}"), size=13)
+            p.paragraph_format.line_spacing = 1.5
+            _set_font(p.add_run(f"{letters[oi]}) {opt}"), size=14)
         p = doc.add_paragraph()
         p.paragraph_format.left_indent = Cm(0.6)
         p.paragraph_format.space_after = Pt(4)
@@ -405,7 +407,8 @@ def build_test_docx(questions: list[dict], lang: str, path: Path) -> Path:
         p = doc.add_paragraph()
         p.paragraph_format.left_indent = Cm(0.6)
         p.paragraph_format.space_after = Pt(4)
-        _set_font(p.add_run(f"Toʻgʻri javob: {ans_letter}"), size=12)
+        p.paragraph_format.line_spacing = 1.5
+        _set_font(p.add_run(f"Toʻgʻri javob: {ans_letter}"), size=14)
         p.runs[0].font.color.rgb = color
 
     doc.save(path)
@@ -416,24 +419,27 @@ def build_text_docx(paragraphs: list[str], title: str, path: Path) -> Path:
     doc = Document()
     sec = doc.sections[0]
     sec.top_margin = sec.bottom_margin = Cm(2)
-    sec.left_margin = sec.right_margin = Cm(2.5)
+    sec.left_margin = Cm(3)
+    sec.right_margin = Cm(1.5)
     normal = doc.styles["Normal"]
     normal.font.name = "Times New Roman"
-    normal.font.size = Pt(12)
+    normal.font.size = Pt(14)
+    normal.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
     if title:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        _set_font(p.add_run(title), size=14, bold=True)
+        _set_font(p.add_run(title), size=16, bold=True)
         doc.add_paragraph()
     for para in paragraphs:
         if para.startswith("## "):
             p = doc.add_paragraph()
-            _set_font(p.add_run(para[3:]), size=13, bold=True)
+            _set_font(p.add_run(para[3:]), size=14, bold=True)
         else:
             p = doc.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-            p.paragraph_format.first_line_indent = Cm(1)
+            p.paragraph_format.first_line_indent = Cm(1.25)
             p.paragraph_format.space_after = Pt(4)
-            _set_font(p.add_run(para), size=12)
+            p.paragraph_format.line_spacing = 1.5
+            _set_font(p.add_run(para), size=14)
     doc.save(path)
     return path
