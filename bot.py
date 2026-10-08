@@ -206,10 +206,8 @@ def kb_menu(lang: str) -> InlineKeyboardMarkup:
         [btn(t(lang, "btn_quiz"), "m:quiz")],
         [btn(t(lang, "btn_doc2pdf"), "c:docx"), btn(t(lang, "btn_pdf2doc"), "c:pdf")],
         [btn(t(lang, "btn_img2pdf"), "c:img")],
-        [btn(t(lang, "btn_myfiles"), "myfiles")],
-        [btn(t(lang, "btn_tools"), "m:tools")],
-        [btn(t(lang, "btn_premium"), "m:premium"), btn(t(lang, "btn_about"), "m:about")],
-        [btn(t(lang, "btn_help"), "help"), btn(t(lang, "btn_lang"), "lang")],
+        [btn(t(lang, "btn_myfiles"), "myfiles"), btn(t(lang, "btn_premium"), "m:premium")],
+        [btn(t(lang, "btn_support"), "m:support")],
     ])
 
 
@@ -525,11 +523,7 @@ async def cb_mode(call: CallbackQuery, state: FSMContext):
                         kb_premium(lang))
         await call.answer()
         return
-    if mode == "about":
-        await safe_edit(call.message, t(lang, "about_text"), kb_about(lang))
-        await call.answer()
-        return
-    if mode == "aboutwrite":
+    if mode in ("support", "aboutwrite"):
         await state.set_state(St.murojaat)
         await safe_edit(call.message, t(lang, "ask_murojaat"), kb_back(lang))
         await call.answer()
@@ -1454,6 +1448,11 @@ async def cb_dl(call: CallbackQuery, state: FSMContext):
 
 # ---------- Murojaat ----------
 
+_album_lock = asyncio.Lock()
+_album_messages: dict[str, list[Message]] = {}
+_album_processing: set[str] = set()
+
+
 @router.message(St.murojaat, F.text)
 async def on_murojaat(message: Message, state: FSMContext, bot: Bot):
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
@@ -1465,8 +1464,8 @@ async def on_murojaat(message: Message, state: FSMContext, bot: Bot):
     u = f"@{message.from_user.username}" if message.from_user.username else "username yoʻq"
     await notify_admin(
         bot,
-        f"📮 MUROJAAT\n👤 {uname} ({u})\n🆔 ID: {message.from_user.id}\n🌐 {lang}"
-        f"\n\n{text}\n\n— javob berish uchun shu xabarga Reply qiling —")
+        f"💬 <b>YANGI MUROJAAT / SUPPORT</b>\n👤 <b>{uname}</b> ({u})\n🆔 ID: <code>{message.from_user.id}</code>\n🌐 Til: {lang}"
+        f"\n\n❓ <b>Savol:</b>\n{text}\n\n<i>— Javob berish uchun ushbu xabarga Reply qiling —</i>")
     await state.set_state(None)
     await message.answer(t(lang, "murojaat_sent"), reply_markup=kb_menu(lang))
 
@@ -1510,6 +1509,53 @@ async def any_photo(message: Message, state: FSMContext, bot: Bot):
     if st == St.pay_photo.state:
         return
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
+
+    if message.media_group_id:
+        gid = message.media_group_id
+        async with _album_lock:
+            if gid not in _album_messages:
+                _album_messages[gid] = []
+            _album_messages[gid].append(message)
+            if gid in _album_processing:
+                return
+            _album_processing.add(gid)
+
+        await asyncio.sleep(1.2)
+
+        async with _album_lock:
+            msgs = _album_messages.pop(gid, [])
+            _album_processing.discard(gid)
+
+        if not msgs:
+            return
+
+        wait = await message.answer(t(lang, "conv_busy"))
+        msgs.sort(key=lambda m: m.message_id)
+        uid = message.from_user.id
+        ts = int(time.time())
+        img_paths = []
+        for idx, m in enumerate(msgs):
+            p = user_dir(uid) / f"album_{ts}_{idx}.jpg"
+            photo = m.photo[-1]
+            await bot.download(photo, destination=p)
+            img_paths.append(p)
+
+        try:
+            out_pdf = user_dir(uid) / f"album_{ts}.pdf"
+            conv.images_to_pdf_sync(img_paths, out_pdf)
+            await keep(uid, "pdf", f"Rasmlar ({len(img_paths)} ta)→PDF", out_pdf)
+            await delete_quietly(wait)
+            caption = f"✅ {len(img_paths)} ta rasm bitta PDF hujjatga birlashtirildi!"
+            await message.answer_document(
+                FSInputFile(out_pdf), caption=caption,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [btn(t(lang, "back"), "back")]]))
+        except Exception as e:
+            await delete_quietly(wait)
+            await message.answer(t(lang, "conv_error") + f"\n{str(e)[:150]}",
+                                 reply_markup=kb_back(lang))
+        return
+
     wait = await message.answer(t(lang, "conv_busy"))
     photo = message.photo[-1]
     src = user_dir(message.from_user.id) / f"img_{int(time.time())}.jpg"
@@ -1528,12 +1574,11 @@ async def any_photo(message: Message, state: FSMContext, bot: Bot):
                              reply_markup=kb_back(lang))
 
 
-
 @router.message(F.text)
 async def any_text(message: Message, state: FSMContext, bot: Bot):
     if message.reply_to_message is not None and message.from_user.id in await db.admin_ids():
-        rtext = message.reply_to_message.text or ""
-        m = re.search(r"🆔 ID[: ]+(\d+)", rtext)
+        rtext = message.reply_to_message.text or message.reply_to_message.caption or ""
+        m = re.search(r"ID[: ]+(\d+)", rtext)
         if m:
             uid = int(m.group(1))
             u = await db.get_user(uid)
