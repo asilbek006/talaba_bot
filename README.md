@@ -60,7 +60,7 @@ GEMINI_MODEL=gemini-2.5-flash
 ADMIN_IDS=123456789,987654321        # admin Telegram ID lari (vergul bilan)
 ADMIN_SECRET=                         # ixtiyoriy bir martalik kod
 DATABASE_URL=postgresql://talaba_bot:KuchliParol123@localhost:5432/talaba_bot
-DAILY_LIMIT=2                         # bepul rejimda kunlik AI hujjatlar
+DAILY_LIMIT=3                         # bepul rejimda kunlik AI hujjatlar
 GEMINI_MAX_CONCURRENT=2               # bir vaqtda Gemini soʻrovlari soni
 ```
 `.env` hech qachon git/qonga tushmasligi kerak (`.gitignore`da).
@@ -127,10 +127,10 @@ Gemini JSON tuzadi → `python-docx`/`python-pptx`/`openpyxl` bilan fayl yigʻil
    ```
    PAYMENT_CARD=0000000000000000
    PAYMENT_HOLDER=Davlatov Asilbek
-   PAYMENT_AMOUNT=50000
-   PREMIUM_DAYS=30
-   PRO_WORD=5
-   PRO_SLIDE=3
+  PAYMENT_AMOUNT=15000
+  PREMIUM_DAYS=30
+  PRO_WORD=5
+  PRO_SLIDE=5
    ```
    `PAYMENT_CARD` boʻsh boʻlsa bot “Toʻlov hali sozlanmagan” deydi (xatoliksiz).
 2. Botni qayta ishga tushiring. ⭐ Premium → “Sotib olish” → karta raqami + summa chiqadi.

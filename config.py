@@ -14,18 +14,18 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "").strip()
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
-DAILY_LIMIT = max(1, int(os.getenv("DAILY_LIMIT", "2").strip() or "2"))
+DAILY_LIMIT = max(1, int(os.getenv("DAILY_LIMIT", "3").strip() or "3"))
 GEMINI_MAX_CONCURRENT = max(1, int(os.getenv("GEMINI_MAX_CONCURRENT", "2").strip() or "2"))
 
 # Pro paket (bir martalik): PREMIUM_DAYS kun ichida PRO_WORD ta Word + PRO_SLIDE ta slayd + quiz tahlili
 PREMIUM_DAYS = max(1, int(os.getenv("PREMIUM_DAYS", "30").strip() or "30"))
 PRO_WORD = max(0, int(os.getenv("PRO_WORD", "5").strip() or "5"))
-PRO_SLIDE = max(0, int(os.getenv("PRO_SLIDE", "3").strip() or "3"))
+PRO_SLIDE = max(0, int(os.getenv("PRO_SLIDE", "5").strip() or "5"))
 
 # Qo'lda to'lov uchun karta (faqat .env da — GitHub/gitga tushmaydi!)
 PAYMENT_CARD = os.getenv("PAYMENT_CARD", "").strip()
 PAYMENT_HOLDER = os.getenv("PAYMENT_HOLDER", "").strip()
-PAYMENT_AMOUNT = os.getenv("PAYMENT_AMOUNT", "50000").strip()
+PAYMENT_AMOUNT = os.getenv("PAYMENT_AMOUNT", "15000").strip()
 
 FILES_DIR = BASE_DIR / "files"
 FILES_DIR.mkdir(exist_ok=True)

@@ -204,6 +204,7 @@ def kb_menu(lang: str) -> InlineKeyboardMarkup:
         [btn(t(lang, "btn_referat"), "m:ref"), btn(t(lang, "btn_pptx"), "m:ppt")],
         [btn(t(lang, "btn_xlsx"), "m:xls"), btn(t(lang, "btn_test"), "m:test")],
         [btn(t(lang, "btn_quiz"), "m:quiz")],
+        [btn(t(lang, "btn_doc2pdf"), "c:docx"), btn(t(lang, "btn_pdf2doc"), "c:pdf")],
         [btn(t(lang, "btn_myfiles"), "myfiles")],
         [btn(t(lang, "btn_tools"), "m:tools")],
         [btn(t(lang, "btn_premium"), "m:premium"), btn(t(lang, "btn_about"), "m:about")],
