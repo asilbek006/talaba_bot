@@ -71,3 +71,18 @@ def test_doc_pdf_conversion(tmp_path):
     res_docx = pdf_to_docx(res_pdf, back_docx)
     assert res_docx.exists()
     assert res_docx.stat().st_size > 0
+
+
+def test_image_to_pdf_conversion(tmp_path):
+    from PIL import Image
+    from services.doc_pdf import image_to_pdf
+
+    img = Image.new("RGB", (200, 200), color="blue")
+    img_p = tmp_path / "sample.jpg"
+    img.save(img_p)
+
+    out_pdf = tmp_path / "sample.pdf"
+    res_pdf = image_to_pdf(img_p, out_pdf)
+    assert res_pdf.exists()
+    assert res_pdf.stat().st_size > 0
+    assert len(PdfReader(str(res_pdf)).pages) == 1

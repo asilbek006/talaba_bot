@@ -205,6 +205,7 @@ def kb_menu(lang: str) -> InlineKeyboardMarkup:
         [btn(t(lang, "btn_xlsx"), "m:xls"), btn(t(lang, "btn_test"), "m:test")],
         [btn(t(lang, "btn_quiz"), "m:quiz")],
         [btn(t(lang, "btn_doc2pdf"), "c:docx"), btn(t(lang, "btn_pdf2doc"), "c:pdf")],
+        [btn(t(lang, "btn_img2pdf"), "c:img")],
         [btn(t(lang, "btn_myfiles"), "myfiles")],
         [btn(t(lang, "btn_tools"), "m:tools")],
         [btn(t(lang, "btn_premium"), "m:premium"), btn(t(lang, "btn_about"), "m:about")],
@@ -234,6 +235,7 @@ def kb_premium(lang: str) -> InlineKeyboardMarkup:
 def kb_conv_pick(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [btn(t(lang, "conv_docx"), "c:docx"), btn(t(lang, "conv_pdf"), "c:pdf")],
+        [btn(t(lang, "conv_img"), "c:img")],
         [btn(t(lang, "back"), "back")],
     ])
 
@@ -980,12 +982,13 @@ async def cb_conv_pick(call: CallbackQuery, state: FSMContext):
 async def cb_conv_kind(call: CallbackQuery, state: FSMContext):
     kind = call.data.split(":")[1]
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
-    if kind not in ("docx", "pdf"):
+    if kind not in ("docx", "pdf", "img"):
         await call.answer()
         return
+    await state.set_state(St.conv)
     await state.update_data(conv_kind=kind)
-    await safe_edit(call.message, t(lang, "send_docx" if kind == "docx" else "send_pdf"),
-                    kb_back(lang))
+    prompt_key = "send_docx" if kind == "docx" else ("send_pdf" if kind == "pdf" else "send_img")
+    await safe_edit(call.message, t(lang, prompt_key), kb_back(lang))
     await call.answer()
 
 
@@ -1002,6 +1005,9 @@ async def on_convert_file(message: Message, state: FSMContext, bot: Bot):
     if kind == "pdf" and not fname.endswith(".pdf"):
         await message.answer(t(lang, "send_pdf"))
         return
+    if kind == "img" and not fname.endswith((".png", ".jpg", ".jpeg", ".webp", ".bmp")):
+        await message.answer(t(lang, "send_img"))
+        return
     if doc_too_big(doc):
         await message.answer(t(lang, "file_too_big"))
         return
@@ -1012,9 +1018,12 @@ async def on_convert_file(message: Message, state: FSMContext, bot: Bot):
         if kind == "docx":
             out = await conv.docx_to_pdf(src)
             out_kind, out_label = "pdf", "Word→PDF"
-        else:
+        elif kind == "pdf":
             out = await conv.pdf_to_docx(src)
             out_kind, out_label = "word", "PDF→Word"
+        else:
+            out = await conv.image_to_pdf(src)
+            out_kind, out_label = "pdf", "Rasm→PDF"
         await keep(message.from_user.id, out_kind, out_label + " " + Path(fname).stem, out)
         await delete_quietly(wait)
         await message.answer_document(
@@ -1486,8 +1495,38 @@ async def any_document(message: Message, state: FSMContext, bot: Bot):
         await state.update_data(conv_kind="pdf")
         await on_convert_file(message, state, bot)
         return
+    if fname.endswith((".png", ".jpg", ".jpeg", ".webp", ".bmp")):
+        await state.set_state(St.conv)
+        await state.update_data(conv_kind="img")
+        await on_convert_file(message, state, bot)
+        return
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
     await message.answer(t(lang, "unknown"), reply_markup=kb_menu(lang))
+
+
+@router.message(F.photo)
+async def any_photo(message: Message, state: FSMContext, bot: Bot):
+    st = await state.get_state()
+    if st == St.pay_photo.state:
+        return
+    lang = (await state.get_data()).get("lang", DEFAULT_LANG)
+    wait = await message.answer(t(lang, "conv_busy"))
+    photo = message.photo[-1]
+    src = user_dir(message.from_user.id) / f"img_{int(time.time())}.jpg"
+    await bot.download(photo, destination=src)
+    try:
+        out = await conv.image_to_pdf(src)
+        await keep(message.from_user.id, "pdf", "Rasm→PDF", out)
+        await delete_quietly(wait)
+        await message.answer_document(
+            FSInputFile(out), caption=t(lang, "conv_img_done"),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [btn(t(lang, "back"), "back")]]))
+    except Exception as e:
+        await delete_quietly(wait)
+        await message.answer(t(lang, "conv_error") + f"\n{str(e)[:150]}",
+                             reply_markup=kb_back(lang))
+
 
 
 @router.message(F.text)

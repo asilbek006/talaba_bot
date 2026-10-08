@@ -40,3 +40,8 @@ def pdf_to_docx(pdf_path: Path | str, docx_path: Path | str) -> Path:
                 pass
         shutil.move(str(generated), str(docx_path))
     return docx_path
+
+
+def image_to_pdf(image_path: Path | str, pdf_path: Path | str) -> Path:
+    """Rasm faylni PDF formatiga o'tkazish."""
+    return conv.images_to_pdf_sync(Path(image_path), Path(pdf_path))
