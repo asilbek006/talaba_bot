@@ -51,3 +51,23 @@ def test_split_pdf(tmp_path):
     assert len(outs) == 2
     assert len(PdfReader(str(outs[0])).pages) == 2
     assert len(PdfReader(str(outs[1])).pages) == 2
+
+
+def test_doc_pdf_conversion(tmp_path):
+    from docx import Document
+    from services.doc_pdf import docx_to_pdf, pdf_to_docx
+
+    doc = Document()
+    doc.add_paragraph("Test TalabaBot Conversion")
+    docx_p = tmp_path / "test.docx"
+    doc.save(docx_p)
+
+    pdf_p = tmp_path / "test.pdf"
+    res_pdf = docx_to_pdf(docx_p, pdf_p)
+    assert res_pdf.exists()
+    assert res_pdf.stat().st_size > 0
+
+    back_docx = tmp_path / "back.docx"
+    res_docx = pdf_to_docx(res_pdf, back_docx)
+    assert res_docx.exists()
+    assert res_docx.stat().st_size > 0

@@ -996,7 +996,7 @@ async def on_convert_file(message: Message, state: FSMContext, bot: Bot):
     kind = data.get("conv_kind", "docx")
     doc = message.document
     fname = (doc.file_name or "").lower()
-    if kind == "docx" and not fname.endswith(".docx"):
+    if kind == "docx" and not (fname.endswith(".docx") or fname.endswith(".doc")):
         await message.answer(t(lang, "send_docx"))
         return
     if kind == "pdf" and not fname.endswith(".pdf"):
@@ -1465,7 +1465,7 @@ async def on_murojaat(message: Message, state: FSMContext, bot: Bot):
 # ---------- Generic ----------
 
 @router.message(F.document)
-async def any_document(message: Message, state: FSMContext):
+async def any_document(message: Message, state: FSMContext, bot: Bot):
     st = await state.get_state()
     text_states = {St.name.state, St.topic.state, St.count.state,
                    St.quiz_count.state, St.quiz_time.state, St.tsplit_range.state,
@@ -1473,6 +1473,18 @@ async def any_document(message: Message, state: FSMContext):
     if st in text_states:
         lang = (await state.get_data()).get("lang", DEFAULT_LANG)
         await message.answer(t(lang, "expect_text"), reply_markup=kb_back(lang))
+        return
+    doc = message.document
+    fname = (doc.file_name or "").lower()
+    if fname.endswith((".docx", ".doc")):
+        await state.set_state(St.conv)
+        await state.update_data(conv_kind="docx")
+        await on_convert_file(message, state, bot)
+        return
+    if fname.endswith(".pdf"):
+        await state.set_state(St.conv)
+        await state.update_data(conv_kind="pdf")
+        await on_convert_file(message, state, bot)
         return
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
     await message.answer(t(lang, "unknown"), reply_markup=kb_menu(lang))
