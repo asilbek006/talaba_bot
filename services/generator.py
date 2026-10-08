@@ -1,13 +1,16 @@
 import json
+import logging
 import re
 import time
 
 from google import genai
 from google.genai import types
 
-from config import GEMINI_API_KEY, GEMINI_MODEL
+from config import GEMINI_API_KEY, GEMINI_IMAGE_MODEL, GEMINI_MODEL
+from services.image_utils import normalize_ppt_image
 
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+log = logging.getLogger("talababot")
 
 LANG_NAMES = {"uz": "oʻzbek lotin alifbosidagi", "ru": "русский", "en": "English"}
 
@@ -39,7 +42,8 @@ PPTX_PROMPT = """Sen professional prezentatsiya muallifisan.
 MUHIM: Siz FAQAT "{topic}" mavzusida yozasiz. Boshqa mavzuga o\'tish TAQIQLANADI.
 Til: {lang}
 Slaydlar soni: aynan {n} ta (muqova slayd ham shu son ichida).
-Har bir slaydda: qisqa sarlavha va 3-5 ta bullet (har biri 1-2 gap, juda uzun bo\'lmasin).
+Har bir slaydda: qisqa sarlavha, 3-5 ta qisqa bullet va mazmuniga mos rasm uchun image_prompt yoz.
+image_prompt rasm generatoriga beriladi: aynan slayd mazmunini ifodalovchi, yozuvsiz, sifatli editorial rasm tasvirlansin.
 Birinchi slayd — muqova (title + subtitle), oxirgi slayd — xulosa yoki rahmat.
 Har bir slayd uchun speaker notes (nutq matni) yoz — 2-4 gap.
 Javobni FAQAT sof JSON koʻrinishida qaytar:
@@ -47,7 +51,7 @@ Javobni FAQAT sof JSON koʻrinishida qaytar:
   "title": "prezentatsiya sarlavhasi",
   "subtitle": "qisqa izoh",
   "slides": [
-    {{"title": "slayd sarlavhasi", "bullets": ["...", "..."], "notes": "speaker notes..."}}
+    {{"title": "slayd sarlavhasi", "bullets": ["...", "..."], "notes": "speaker notes...", "image_prompt": "slayd mazmuniga mos, yozuvsiz rasm tavsifi"}}
   ]
 }}
 Boshqa hech narsa yozma."""
@@ -196,6 +200,52 @@ def gen_pptx(lang: str, topic: str, n: int) -> dict:
     return data
 
 
+def add_ppt_images(data: dict) -> dict:
+    """Add a topic-specific generated image to each slide when the image API is available."""
+    if not client:
+        log.warning("Gemini image generation skipped: GEMINI_API_KEY sozlanmagan")
+        data["image_failures"] = len(data.get("slides", []))
+        return data
+
+    failures = 0
+    for index, slide in enumerate(data.get("slides", []), start=1):
+        title = str(slide.get("title", "")).strip()
+        bullets = [str(item).strip() for item in slide.get("bullets", []) if str(item).strip()]
+        visual_prompt = str(slide.get("image_prompt", "")).strip()
+        if not visual_prompt:
+            visual_prompt = f"Mavzu: {data.get('title', '')}. Slayd: {title}. Asosiy fikrlar: {'; '.join(bullets)}."
+        prompt = (
+            "Create a polished landscape photograph or editorial illustration for a presentation. "
+            "Show a clear, specific visual that directly explains the slide topic and key facts. "
+            "Do not include text, letters, numbers, labels, logos, borders, or watermarks. "
+            "Use an uncluttered composition with a clear focal subject.\n\n"
+            f"Presentation topic: {data.get('title', '')}\nSlide {index}: {title}\n"
+            f"Key points: {'; '.join(bullets)}\nVisual direction: {visual_prompt}"
+        )
+        try:
+            response = client.models.generate_content(
+                model=GEMINI_IMAGE_MODEL,
+                contents=[prompt],
+                config=types.GenerateContentConfig(response_modalities=["IMAGE"]),
+            )
+            part = next(
+                (candidate for candidate in (response.parts or [])
+                 if getattr(candidate, "inline_data", None)
+                 and getattr(candidate.inline_data, "data", None)),
+                None,
+            )
+            if part:
+                slide["image_bytes"] = normalize_ppt_image(part.inline_data.data)
+            else:
+                log.warning("Slayd %s uchun Gemini rasm qaytarmadi", index)
+                failures += 1
+        except Exception as exc:
+            log.warning("Slayd %s uchun rasm yaratilmadi (%s)", index, type(exc).__name__)
+            failures += 1
+    data["image_failures"] = failures
+    return data
+
+
 def _xls_ok(data) -> bool:
     return (isinstance(data, dict) and isinstance(data.get("headers"), list)
             and isinstance(data.get("rows"), list))
@@ -276,7 +326,8 @@ PPTX_FROM_TEXT_PROMPT = """Sen berilgan matn asosida professional prezentatsiya 
 Til: {lang}
 Slaydlar soni: aynan {n} ta (muqova slayd ham shu son ichida, oxirgi slayd — xulosa).
 Berilgan matnni bo'limlar bo'yicha taqsimlab chiq: har bir slaydda qisqa sarlavha va
-3-5 ta bullet (har biri 1-2 gap) bo'lsin, matnning asosiy ma'lumotlarini saqla.
+3-5 ta qisqa bullet (har biri 1-2 gap) va mazmuniga mos yozuvsiz rasm uchun image_prompt bo'lsin,
+matnning asosiy ma'lumotlarini saqla.
 Matn:
 {text}
 Har bir slayd uchun speaker notes (nutq matni) yoz — 2-4 gap.
@@ -285,7 +336,7 @@ Javobni FAQAT sof JSON koʻrinishida qaytar:
   "title": "prezentatsiya sarlavhasi",
   "subtitle": "qisqa izoh",
   "slides": [
-    {{"title": "slayd sarlavhasi", "bullets": ["...", "..."], "notes": "speaker notes..."}}
+    {{"title": "slayd sarlavhasi", "bullets": ["...", "..."], "notes": "speaker notes...", "image_prompt": "slayd mazmuniga mos, yozuvsiz rasm tavsifi"}}
   ]
 }}
 Boshqa hech narsa yozma."""
