@@ -43,6 +43,8 @@ import services.payments as payments
 import services.pdf as pdf_tool
 import services.quiz as quiz_tool
 import services.storage as file_store
+import services.badwords as badwords
+import services.moderation as mod
 from config import log
 from i18n import DEFAULT_LANG, LANGS, t
 from services.fsm_pg import EventIsolation, PostgresStorage
@@ -468,14 +470,30 @@ def fmt_file_row(f: dict, idx: int, lang: str) -> str:
 
 
 async def safe_edit(msg, text: str, kb=None):
-    if getattr(msg, "document", None) or getattr(msg, "photo", None):
-        await msg.answer(text, reply_markup=kb)
+    if getattr(msg, "document", None) or getattr(msg, "photo", None) or getattr(msg, "text", None) is None:
+        try:
+            await msg.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        if hasattr(msg, "answer"):
+            await msg.answer(text, reply_markup=kb)
+        elif hasattr(msg, "bot") and hasattr(msg, "chat"):
+            await msg.bot.send_message(chat_id=msg.chat.id, text=text, reply_markup=kb)
         return
     try:
         await msg.edit_text(text, reply_markup=kb)
     except TelegramBadRequest as e:
         if "message is not modified" not in str(e).lower():
-            await msg.answer(text, reply_markup=kb)
+            try:
+                await msg.edit_reply_markup(reply_markup=None)
+            except Exception:
+                pass
+            if hasattr(msg, "answer"):
+                await msg.answer(text, reply_markup=kb)
+            elif hasattr(msg, "bot") and hasattr(msg, "chat"):
+                await msg.bot.send_message(chat_id=msg.chat.id, text=text, reply_markup=kb)
+    except Exception as e:
+        log.debug("safe_edit bajarilmadi: %s", e)
 
 
 async def send_file(target: Message, path: Path, caption: str, kb=None):
@@ -724,6 +742,11 @@ async def cb_lang(call: CallbackQuery, state: FSMContext):
 async def on_name(message: Message, state: FSMContext, bot: Bot):
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
     name = message.text.strip()
+    ok, reason = mod.check_content(name)
+    if not ok:
+        msg_key = "warn_haqorat" if reason == "haqorat" else "no_personal_info"
+        await message.answer(t(lang, msg_key))
+        return
     if not (2 <= len(name) <= 50):
         await message.answer(t(lang, "bad_name"))
         return
@@ -963,7 +986,10 @@ async def _pay_decision(call: CallbackQuery, bot: Bot, ok: bool):
 async def on_topic(message: Message, state: FSMContext):
     topic = message.text.strip()
     lang = (await ctx(state, message.from_user.id)).get("lang", DEFAULT_LANG)
-    if not 4 <= len(topic) <= 500:
+    if badwords.has_badword(topic):
+        await message.answer(t(lang, "warn_haqorat"))
+        return
+    if len(topic) < 4:
         await message.answer(t(lang, "bad_topic"))
         return
     data = await state.get_data()
@@ -1695,6 +1721,11 @@ async def do_rewrite(target: Message, state: FSMContext, paragraphs: list[str]):
     if not text.strip():
         await target.answer(t(lang, "bad_topic"))
         return
+    ok, reason = mod.check_content(text)
+    if not ok:
+        msg_key = "warn_haqorat" if reason == "haqorat" else "no_personal_info"
+        await target.answer(t(lang, msg_key), reply_markup=kb_back(lang))
+        return
     if await try_busy(target.from_user.id, target, state):
         return
     try:
@@ -1936,7 +1967,12 @@ _album_tasks: dict[tuple[int, str], asyncio.Task] = {}
 async def on_murojaat(message: Message, state: FSMContext, bot: Bot):
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
     text = message.text.strip()
-    if not 3 <= len(text) <= 3000:
+    if badwords.has_badword(text):
+        await message.answer(t(lang, "warn_haqorat"))
+        return
+    if len(text) < 3:
+        await message.answer(t(lang, "bad_topic"))
+        return
         await message.answer(t(lang, "bad_topic"))
         return
     uname = await user_name(message.from_user.id)
@@ -2090,6 +2126,11 @@ async def any_text(message: Message, state: FSMContext, bot: Bot):
             await message.reply(t(DEFAULT_LANG, "reply_sent"))
             return
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
+    ok, reason = mod.check_content(message.text)
+    if not ok:
+        msg_key = "warn_haqorat" if reason == "haqorat" else "no_personal_info"
+        await message.answer(t(lang, msg_key), reply_markup=kb_menu(lang))
+        return
     await message.answer(t(lang, "unknown"), reply_markup=kb_menu(lang))
 
 
