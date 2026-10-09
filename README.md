@@ -9,7 +9,7 @@ Telegram orqali referat, prezentatsiya, jadval va test tayyorlash, hujjatlarni a
 - Word → PPTX, matnni qayta yozish va tarjima qilish. AI javobining tuzilishi, hajmi va paragraf soni tekshiriladi; yaroqsiz javob foydalanuvchiga tayyor ish sifatida berilmaydi.
 - Word savolbankidan 100 tagacha savolli quiz. Javob muddati va sessiya tekshiriladi; restartdan keyin saqlangan quiz taymeri tiklanadi.
 - “Mening ishlarim”: foydalanuvchiga tegishli fayllar, standart 30 kunlik saqlash. Tozalash har soatda ishlaydi.
-- Pro: `PRO_WORD` ta matn/jadval/test/ tarjima ishi, `PRO_SLIDE` ta **prezentatsiya** va quiz tahlili. Paket cheksiz emas; faol paketga yana paket olinsa kredit va muddat qo'shiladi. Kredit tugaganda kunlik bepul limitdan foydalanish mumkin.
+- Pro: `PRO_WORD` ta matn/jadval/tarjima ishi, `PRO_SLIDE` ta **prezentatsiya**, `PRO_QUIZ` ta test yaratish yoki interaktiv quiz. **Kreditlar muddatsiz**, miqdori cheklangan; qayta xarid qoldiqqa qo'shiladi. Kredit tugaganda kunlik bepul limitdan foydalanish mumkin.
 - Qo'lda to'lov: karta → chek → admin qarori. Bitta chekni takror tasdiqlash qayta kredit bermaydi. Bank to'lovi avtomatik tekshirilmaydi.
 
 Referat sahifalari matn hajmi orqali taxmin qilinadi; Word shriftlari va joylashuviga qarab yakuniy sahifa soni farq qilishi mumkin. AI matnidagi fakt va manbalarni foydalanuvchi tekshirishi kerak. PDF → Word aniq maketni kafolatlamaydi, skanerlangan sahifalar uchun OCR yo'q. Slayd rasmlari tashqi servislar mavjudligiga bog'liq; rasm olinmasa matnli prezentatsiya yuboriladi va bu haqida xabar beriladi.
@@ -48,8 +48,8 @@ Paket versiyalari `requirements.txt` va tranzitiv bog'liqliklar `requirements.lo
 | `FILE_RETENTION_DAYS` | `30` | Fayllarni saqlash muddati |
 | `MAX_PDF_PAGES` | `300` | PDF sahifalari chegarasi |
 | `MAX_TEXT_CHARS` | `120000` | Word matni chegarasi |
-| `PREMIUM_DAYS` | `30` | Pro paket muddati |
-| `PRO_WORD` / `PRO_SLIDE` | `5` / `5` | Paketdagi ishlar / prezentatsiyalar |
+| `PREMIUM_DAYS` | `30` | Eski sozlamaga moslik; yangi paket muddatsiz |
+| `PRO_WORD` / `PRO_SLIDE` / `PRO_QUIZ` | `5` / `5` / `5` | Word-jadval / prezentatsiya / test-quiz kvotalari |
 | `PAYMENT_AMOUNT` | `15000` | Foydalanuvchiga ko'rsatiladigan summa |
 | `FILES_DIR` / `LOG_DIR` | `files/` / `logs/` | Absolyut yo'l berish mumkin |
 
@@ -57,17 +57,21 @@ To'lovni yoqish uchun `PAYMENT_CARD`, `PAYMENT_HOLDER` va kamida bitta admin ker
 
 ## Ishonchlilik
 
-Kvota AI ishidan oldin PostgreSQL tranzaksiyasida band qilinadi. Xatolikda qaytariladi; muvaffaqiyatli fayl va hisob bir tranzaksiyada qayd etiladi. Telegramga yuborish muvaffaqiyatsiz bo'lsa, tayyor fayl “Mening ishlarim”da qoladi. Jarayon kutilmaganda to'xtasa, startup tugallanmagan ishlarni bekor qilib, hali amal qilayotgan davr kvotasini qaytaradi va foydalanuvchiga xabar yuborishga urinadi. Uzilgan AI ishi avtomatik qayta yaratilmaydi.
+Kvota AI ishidan oldin PostgreSQL tranzaksiyasida band qilinadi. Xatolikda qaytariladi; muvaffaqiyatli fayl va hisob bir tranzaksiyada qayd etiladi. Telegramga yuborish muvaffaqiyatsiz bo'lsa, tayyor fayl “Mening ishlarim”da qoladi. Jarayon kutilmaganda to'xtasa, startup tugallanmagan ishlarni bekor qilib, Pro kreditini yoki o'sha kundagi bepul kvotani qaytaradi va foydalanuvchiga xabar yuborishga urinadi. Uzilgan AI ishi avtomatik qayta yaratilmaydi.
+
+Quiz boshlanishida quiz kvotasi band qilinadi, yakunda bir marta hisoblanadi. Menyu orqali bekor qilingan quiz kvotasi qaytariladi. Restart faol quizni va band qilingan kvotasini saqlaydi.
+
+Hujjat tili mavzu yoki Word matni asosida avtomatik aniqlanadi. Startup tarmoq xatosida Telegram ulanishini kutib qayta urinadi; noto'g'ri token kabi doimiy xatolar yashirilmaydi.
 
 Har foydalanuvchining yangilanishlari ketma-ket bajariladi. Bot **bitta polling jarayoni** uchun mo'ljallangan: PostgreSQL advisory lock ikkinchi nusxani ishga tushirmaydi. AI navbati cheklangan, og'ir hujjat ishlari event loop tashqarisida, PDF fallback esa timeoutli alohida jarayonda bajariladi. Fayllar foydalanuvchi papkasida UUID nom bilan saqlanadi.
 
 ## Admin
 
 - `/stats` — foydalanuvchilar va hujjatlar statistikasi.
-- `/grant <user_id> <kun>` — sozlangan kreditli Pro paket berish.
+- `/grant <user_id>` — muddatsiz Pro kvotalarini berish; eski uchinchi kun argumenti qabul qilinadi, muddat o'rnatmaydi.
 - `/payments` — dastlabki 20 ta kutilayotgan chekni chiqarish; ular ko'rib chiqilgach keyingilari chiqadi.
 - `/broadcast <matn>` — barcha foydalanuvchilarga xabar yuborish.
-- Murojaat xabariga Reply — aynan shu murojaat egasiga javob yuborish.
+- Murojaatga “Javob yozish” tugmasi yoki Reply orqali javob berish; `/reply <user_id> <matn>` va `/javob` ham mavjud. Tugma rejimini `/cancel` bekor qiladi.
 - `/admin <kod>` — ixtiyoriy `ADMIN_SECRET` bilan bir martalik admin qo'shish. Bir foydalanuvchi uchun 15 daqiqada 5 urinish. Yangi admin qo'shish uchun kodni almashtirish yoki `ADMIN_IDS`dan foydalanish kerak.
 
 ## Server: systemd

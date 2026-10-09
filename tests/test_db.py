@@ -119,22 +119,23 @@ def test_grant_premium(pg):
 def test_package_quota(pg):
     uid = 9_000_000_045 + int(time.time()) % 1000
     run(db.upsert_user(uid, "Q", "", "uz"))
-    pro, wl, sl = run(db.package_status(uid))
-    assert pro is False and wl == 0 and sl == 0
-    run(db.grant_package(uid, 30, 3, 2))
-    pro, wl, sl = run(db.package_status(uid))
-    assert pro is True and wl == 3 and sl == 2
+    pro, wl, sl, ql = run(db.package_status(uid))
+    assert pro is False and wl == 0 and sl == 0 and ql == 0
+    run(db.grant_package(uid, 30, 3, 2, 4))
+    pro, wl, sl, ql = run(db.package_status(uid))
+    assert pro is True and wl == 3 and sl == 2 and ql == 4
     run(db.consume_package(uid, "word"))
     run(db.consume_package(uid, "word"))
-    _, wl2, _ = run(db.package_status(uid))
+    _, wl2, _, _ = run(db.package_status(uid))
     assert wl2 == 1
     run(db.consume_package(uid, "slide"))
-    _, _, sl2 = run(db.package_status(uid))
+    _, _, sl2, _ = run(db.package_status(uid))
     assert sl2 == 1
-    # A renewal adds paid credits to the unexpired balance.
-    run(db.grant_package(uid, 5, 1, 1))
-    _, wl3, sl3 = run(db.package_status(uid))
-    assert wl3 == 2 and sl3 == 2
+    run(db.consume_package(uid, "quiz"))
+    # A renewal adds credits in all categories without expiration.
+    run(db.grant_package(uid, 5, 1, 1, 1))
+    _, wl3, sl3, ql3 = run(db.package_status(uid))
+    assert wl3 == 2 and sl3 == 2 and ql3 == 4
     run(cleanup_users([uid]))
 
 
@@ -178,17 +179,13 @@ def test_payment_confirmation_is_atomic(pg):
         payment = await db.create_payment(uid, "proof", "unique-proof", "photo")
         same = await db.create_payment(uid, "new-file-id", "unique-proof", "photo")
         assert same["id"] == payment["id"]
-        before = int(time.time())
         outcomes = await asyncio.gather(
             *(db.decide_payment(payment["id"], admin, True) for admin in range(10))
         )
         assert sum(result is not None for result in outcomes) == 1
         user = await db.get_user(uid)
-        assert (
-            before + config.PREMIUM_DAYS * 86400
-            <= user["premium_until"]
-            <= int(time.time()) + config.PREMIUM_DAYS * 86400
-        )
+        assert user["premium_until"] == 0
+        assert user["quiz_left"] == config.PRO_QUIZ
         assert user["word_left"] == config.PRO_WORD
         assert await db.decide_payment(payment["id"], 99, False) is None
         assert await db.pending_payments() == []
@@ -411,5 +408,97 @@ def test_real_job_flow_refunds_failure_and_keeps_delivered_file(pg, tmp_path, mo
         assert Path(files[0]["path"]).read_bytes() == b"completed document"
 
     from pathlib import Path
+
+    run(scenario())
+
+
+def test_non_expiring_quiz_credit_and_repeated_refund(pg):
+    async def scenario():
+        uid = 9_200_000_001
+        await db.upsert_user(uid, "Quiz credit", "", "uz")
+        await db.grant_package(uid, 1, 0, 0, 1)
+        await db.POOL.execute("UPDATE users SET premium_until=1 WHERE id=$1", uid)
+        assert await db.package_status(uid) == (True, 0, 0, 1)
+        job = await db.reserve_job(uid, "quiz", {})
+        assert job["source"] == "quiz"
+        assert await db.package_status(uid) == (False, 0, 0, 0)
+        results = await asyncio.gather(*(db.refund_job(job["id"]) for _ in range(10)))
+        assert results.count(True) == 1
+        assert await db.package_status(uid) == (True, 0, 0, 1)
+        assert not any(u["id"] == uid for u in await db.expired_premiums())
+
+    run(scenario())
+
+
+def test_interactive_quiz_reservation_survives_restart_and_charges_once(pg, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.storage.base import StorageKey
+
+    import bot
+    from services.fsm_pg import PostgresStorage
+    from tests.test_workflows import message
+
+    async def scenario():
+        uid = 9_200_000_002
+        await db.upsert_user(uid, "Last quiz", "", "uz")
+        await db.grant_package(uid, 0, 0, 0, 1)
+        storage = PostgresStorage()
+        key = StorageKey(bot_id=1, chat_id=777, user_id=uid)
+        state = FSMContext(storage=storage, key=key)
+        await state.set_state(bot.St.quiz_time)
+        await state.update_data(
+            lang="uz",
+            quiz_n=2,
+            quiz_bank=[{"q": "Question?", "options": ["A", "B"], "answer": 0}] * 2,
+        )
+        msg = message(uid=uid, text="1")
+        sent = message(uid=999)
+        msg.answer = AsyncMock(return_value=sent)
+        monkeypatch.setattr(bot, "schedule_quiz", lambda *args: None)
+        await bot.on_quiz_time(msg, state)
+        assert await db.package_status(uid) == (False, 0, 0, 0)
+        assert uid not in await db.recover_interrupted_jobs()
+        restored = FSMContext(storage=PostgresStorage(), key=key)
+        await bot.finish_quiz(sent, restored)
+        await bot.finish_quiz(sent, restored)
+        quiz = (await restored.get_data())["quiz"]
+        assert quiz["done"] and quiz["pro"]
+        assert (await db.get_user(uid))["docs"] == 1
+        assert await db.refund_job(quiz["job_id"]) is False
+        sent.answer.assert_awaited_once()  # Last paid quiz still receives Pro analysis.
+        assert await db.count_files(uid) == 0
+
+    run(scenario())
+
+
+def test_orphaned_interactive_quiz_is_refunded_on_restart(pg):
+    async def scenario():
+        uid = 9_200_000_003
+        await db.upsert_user(uid, "Orphan", "", "uz")
+        await db.grant_package(uid, 0, 0, 0, 1)
+        await db.reserve_job(uid, "quiz", {"interactive": True})
+        assert uid in await db.recover_interrupted_jobs()
+        assert await db.package_status(uid) == (True, 0, 0, 1)
+
+    run(scenario())
+
+
+def test_quiz_payment_snapshot_and_topup_add_all_categories(pg, monkeypatch):
+    async def scenario():
+        uid = 9_200_000_004
+        await db.upsert_user(uid, "Topup", "", "uz")
+        await db.grant_package(uid, 0, 1, 2, 3)
+        payment = await db.create_payment(uid, "quiz-proof", "quiz-unique", "photo")
+        monkeypatch.setattr(config, "PRO_QUIZ", 100)
+        await db.decide_payment(payment["id"], 1, True)
+        assert await db.package_status(uid) == (
+            True,
+            1 + payment["word"],
+            2 + payment["slide"],
+            3 + payment["quiz"],
+        )
+        assert (await db.get_user(uid))["premium_until"] == 0
 
     run(scenario())

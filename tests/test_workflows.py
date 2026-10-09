@@ -366,7 +366,7 @@ def test_oversized_result_is_not_charged_or_indexed(tmp_path, monkeypatch):
 
 def test_approved_payment_notifies_customer_even_if_admin_ui_fails(monkeypatch):
     monkeypatch.setattr(bot.db, "admin_ids", AsyncMock(return_value=[777]))
-    payment = {"id": 42, "user_id": 888, "days": 30, "word": 5, "slide": 5}
+    payment = {"id": 42, "user_id": 888, "days": 30, "word": 5, "slide": 5, "quiz": 5}
     monkeypatch.setattr(bot.db, "decide_payment", AsyncMock(return_value=payment))
     monkeypatch.setattr(bot, "notify_admin", AsyncMock())
     callback = call("pay:ok:v2:42")
@@ -385,3 +385,62 @@ def test_admin_secret_accepts_unicode_without_type_error(monkeypatch):
     monkeypatch.setattr(bot, "notify_admin", AsyncMock())
     asyncio.run(bot.cmd_admin(message(text="/admin yangi-maxfiy-🔐"), NS()))
     claim.assert_awaited_once()
+
+
+def test_support_button_requires_persisted_recipient(monkeypatch):
+    monkeypatch.setattr(bot.db, "admin_ids", AsyncMock(return_value=[777]))
+    monkeypatch.setattr(bot.db, "support_recipient", AsyncMock(return_value=888))
+    state = State()
+    asyncio.run(bot.cb_admin_reply_click(call("adm_rep:999"), state))
+    assert state.state is None
+    asyncio.run(bot.cb_admin_reply_click(call("adm_rep:888"), state))
+    assert state.state == bot.St.admin_reply.state
+    assert state.data["reply_to_uid"] == 888
+
+
+def test_admin_reply_command_and_cancel(monkeypatch):
+    monkeypatch.setattr(bot.db, "admin_ids", AsyncMock(return_value=[777]))
+    state = State()
+    api = NS(send_message=AsyncMock())
+    asyncio.run(bot.cmd_reply(message(text="/reply 888 <hello>"), state, api))
+    assert api.send_message.await_args.args[0] == 888
+    assert "&lt;hello&gt;" in api.send_message.await_args.args[1]
+    state.state = bot.St.admin_reply.state
+    state.data["reply_to_uid"] = 888
+    asyncio.run(bot.on_admin_reply_text(message(text="/cancel"), state, api))
+    assert state.state is None and state.data["reply_to_uid"] is None
+    assert api.send_message.await_count == 1
+
+
+def test_quiz_start_failure_refunds_and_preserves_source(monkeypatch):
+    bank = [{"q": "Question?", "options": ["A", "B"], "answer": 0}] * 2
+    state = State({"lang": "uz", "quiz_bank": bank, "quiz_n": 2}, bot.St.quiz_time.state)
+    monkeypatch.setattr(bot.db, "reserve_job", AsyncMock(return_value={"id": 91, "source": "quiz"}))
+    refund = AsyncMock()
+    monkeypatch.setattr(bot.db, "refund_job", refund)
+    msg = message(text="1")
+    msg.answer.side_effect = RuntimeError("Telegram unavailable")
+    with pytest.raises(RuntimeError):
+        asyncio.run(bot.on_quiz_time(msg, state))
+    refund.assert_awaited_with(91)
+    assert state.data["quiz"]["done"]
+    assert state.data["quiz_bank"] == bank
+
+
+def test_telegram_startup_retries_network_errors_only(monkeypatch):
+    from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
+    from aiogram.methods import GetMe
+
+    api = NS(
+        get_me=AsyncMock(
+            side_effect=[TelegramNetworkError(method=GetMe(), message="offline"), object()]
+        )
+    )
+    delay = AsyncMock()
+    monkeypatch.setattr(bot.asyncio, "sleep", delay)
+    asyncio.run(bot.wait_for_telegram(api))
+    assert api.get_me.await_count == 2
+    delay.assert_awaited_once_with(5)
+    api.get_me.side_effect = TelegramUnauthorizedError(method=GetMe(), message="bad token")
+    with pytest.raises(TelegramUnauthorizedError):
+        asyncio.run(bot.wait_for_telegram(api))

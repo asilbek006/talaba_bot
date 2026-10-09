@@ -46,6 +46,7 @@ def test_t_escapes_dynamic_html():
             days=30,
             w=5,
             s=3,
+            q=5,
         )
         assert "<code>6262&lt;&amp;&gt;5585</code>" in out
         assert "A &amp; B" in out
@@ -60,7 +61,7 @@ def test_bad_range_key():
 def test_payment_amount_is_configurable_in_every_language():
     for lang in i18n.LANGS:
         rendered = i18n.t(
-            lang, "pay_manual", card="0000", holder="Audit", amount="99999", days=30, w=5, s=5
+            lang, "pay_manual", card="0000", holder="Audit", amount="99999", days=30, w=5, s=5, q=5
         )
         assert "99999" in rendered
         assert "15 000" not in rendered

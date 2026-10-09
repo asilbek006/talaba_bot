@@ -7,6 +7,7 @@ from google.genai import types
 
 import config
 from config import GEMINI_API_KEY, GEMINI_MODEL, log
+from services.langdetect import detect_lang
 
 client = (
     genai.Client(
@@ -161,6 +162,7 @@ def _ref_ok(data) -> bool:
 
 
 def gen_referat(lang: str, topic: str, pages: int) -> dict:
+    lang = detect_lang(topic) or lang
     words = max(pages - 1, 1) * 300
     sections = min(14, max(3, pages // 2 + 1))
     prompt = REFERAT_PROMPT.format(
@@ -217,6 +219,7 @@ def _ppt_ok(data) -> bool:
 
 
 def gen_pptx(lang: str, topic: str, n: int) -> dict:
+    lang = detect_lang(topic) or lang
     prompt = PPTX_PROMPT.format(topic=topic, lang=LANG_NAMES.get(lang, lang), n=n)
     data = _ask_validated(prompt, _ppt_ok)
     if not _topic_ok(topic, data) or len(data["slides"]) != n:
@@ -244,6 +247,7 @@ def _xls_ok(data) -> bool:
 
 
 def gen_xlsx(lang: str, topic: str, rows: int) -> dict:
+    lang = detect_lang(topic) or lang
     prompt = XLSX_PROMPT.format(topic=topic, lang=LANG_NAMES.get(lang, lang), rows=rows)
     data = _ask_validated(prompt, _xls_ok)
     if len(data.get("rows", [])) != rows:
@@ -342,6 +346,7 @@ Boshqa hech narsa yozma."""
 
 
 def gen_ppt_from_text(lang: str, text: str, n: int) -> dict:
+    lang = detect_lang(text) or lang
     if len(text) > 40000:
         raise ValueError("Word→PPT uchun matn juda katta (maksimum 40 000 belgi)")
     prompt = PPTX_FROM_TEXT_PROMPT.format(lang=LANG_NAMES.get(lang, lang), n=n, text=text)

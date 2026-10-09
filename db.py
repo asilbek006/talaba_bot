@@ -121,8 +121,8 @@ async def _migrate() -> None:
             );
             CREATE TABLE IF NOT EXISTS ai_jobs (
                 id bigserial PRIMARY KEY, user_id bigint NOT NULL REFERENCES users(id),
-                kind text NOT NULL CHECK (kind IN ('word', 'slide')),
-                source text NOT NULL CHECK (source IN ('free', 'word', 'slide')),
+                kind text NOT NULL CHECK (kind IN ('word', 'slide', 'quiz')),
+                source text NOT NULL CHECK (source IN ('free', 'word', 'slide', 'quiz')),
                 period bigint NOT NULL, payload jsonb NOT NULL DEFAULT '{}',
                 status text NOT NULL DEFAULT 'reserved'
                     CHECK (status IN ('reserved', 'completed', 'failed')),
@@ -139,6 +139,15 @@ async def _migrate() -> None:
             CREATE INDEX IF NOT EXISTS idx_files_expiry ON user_files (created_at);
             CREATE INDEX IF NOT EXISTS idx_payments_pending ON payments (id) WHERE status='pending';
         """)
+    # Keep existing balances and receipt snapshots while adding the upstream quiz plan.
+    await POOL.execute("""
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS quiz_left int NOT NULL DEFAULT 0;
+        ALTER TABLE payments ADD COLUMN IF NOT EXISTS quiz int NOT NULL DEFAULT 0;
+        ALTER TABLE ai_jobs DROP CONSTRAINT IF EXISTS ai_jobs_kind_check;
+        ALTER TABLE ai_jobs ADD CONSTRAINT ai_jobs_kind_check CHECK (kind IN ('word','slide','quiz'));
+        ALTER TABLE ai_jobs DROP CONSTRAINT IF EXISTS ai_jobs_source_check;
+        ALTER TABLE ai_jobs ADD CONSTRAINT ai_jobs_source_check CHECK (source IN ('free','word','slide','quiz'));
+    """)
     jf = BASE_DIR / "users.json"
     af = BASE_DIR / "admin.json"
     try:
@@ -232,7 +241,7 @@ async def stats() -> dict:
     return dict(
         await POOL.fetchrow(
             "SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE last_seen > $1) AS day, "
-            "COALESCE(SUM(docs), 0) AS docs, COUNT(*) FILTER (WHERE premium_until > $2) AS premium "
+            "COALESCE(SUM(docs), 0) AS docs, COUNT(*) FILTER (WHERE premium_until > $2 OR word_left > 0 OR slide_left > 0 OR quiz_left > 0) AS premium "
             "FROM users",
             now - 86400,
             now,
@@ -254,7 +263,9 @@ async def daily_status(uid: int) -> tuple[bool, int]:
         return False, 0
     now = int(time.time())
     today = day_start(now)
-    premium = int(u.get("premium_until") or 0) > now
+    premium = int(u.get("premium_until") or 0) > now or any(
+        u.get(k, 0) > 0 for k in ("word_left", "slide_left", "quiz_left")
+    )
     if int(u.get("daily_reset") or 0) < today:
         await POOL.execute("UPDATE users SET daily_used=0, daily_reset=$1 WHERE id=$2", today, uid)
         return premium, 0
@@ -275,42 +286,40 @@ async def grant_premium(uid: int, days: int) -> None:
     )
 
 
-async def grant_package(uid: int, days: int, word: int, slide: int) -> None:
-    """A purchase adds credits; expired credits do not carry into a new period."""
-    now = int(time.time())
+async def grant_package(
+    uid: int, days: int = 0, word: int = 5, slide: int = 5, quiz: int = 5
+) -> None:
+    """Add non-expiring credits. days is retained for legacy caller compatibility."""
     await POOL.execute(
-        "UPDATE users SET premium_until = GREATEST(premium_until, $1) + $2, "
-        "word_left = CASE WHEN premium_until > $1 THEN word_left ELSE 0 END + $3, "
-        "slide_left = CASE WHEN premium_until > $1 THEN slide_left ELSE 0 END + $4 "
-        "WHERE id=$5",
-        now,
-        int(days) * 86400,
+        "UPDATE users SET premium_until=0, word_left=word_left+$2, "
+        "slide_left=slide_left+$3, quiz_left=quiz_left+$4 WHERE id=$1",
+        uid,
         int(word),
         int(slide),
-        uid,
+        int(quiz),
     )
 
 
-async def package_status(uid: int) -> tuple[bool, int, int]:
-    """(pro, word_left, slide_left) — pro = premium_until hozirgi vaqtdan keyin."""
-    u = await get_user(uid)
-    if not u:
-        return False, 0, 0
-    now = int(time.time())
-    pro = int(u.get("premium_until") or 0) > now
-    return pro, int(u.get("word_left") or 0), int(u.get("slide_left") or 0)
+async def package_status(uid: int) -> tuple[bool, int, int, int]:
+    user = await get_user(uid)
+    balances = tuple(
+        int((user or {}).get(k) or 0) for k in ("word_left", "slide_left", "quiz_left")
+    )
+    return any(n > 0 for n in balances), *balances
 
 
 async def consume_package(uid: int, kind: str) -> None:
-    col = "word_left" if kind == "word" else "slide_left"
-    await POOL.execute(f"UPDATE users SET {col} = GREATEST({col} - 1, 0) WHERE id=$1", uid)
+    if kind not in ("word", "slide", "quiz"):
+        raise ValueError("Invalid quota kind")
+    col = kind + "_left"
+    await POOL.execute(f"UPDATE users SET {col}=GREATEST({col}-1,0) WHERE id=$1", uid)
 
 
 async def expiring_premiums(within: int) -> list[dict]:
     now = int(time.time())
     rows = await POOL.fetch(
         "SELECT id, lang, premium_until FROM users "
-        "WHERE premium_until > $1 AND premium_until <= $2 AND soon_notified_until < premium_until",
+        "WHERE premium_until > $1 AND premium_until <= $2 AND soon_notified_until < premium_until AND word_left=0 AND slide_left=0 AND quiz_left=0",
         now,
         now + int(within),
     )
@@ -321,7 +330,7 @@ async def expired_premiums() -> list[dict]:
     now = int(time.time())
     rows = await POOL.fetch(
         "SELECT id, lang, premium_until FROM users WHERE premium_until > 0 AND premium_until <= $1 "
-        "AND expired_notified_until < premium_until",
+        "AND expired_notified_until < premium_until AND word_left=0 AND slide_left=0 AND quiz_left=0",
         now,
     )
     return [dict(r) for r in rows]
@@ -414,8 +423,8 @@ async def claim_admin_secret(uid: int, digest: str) -> bool:
 
 async def create_payment(uid: int, proof_id: str, unique_id: str, kind: str) -> dict:
     row = await POOL.fetchrow(
-        """INSERT INTO payments(user_id, proof_id, proof_unique_id, proof_kind, amount, days, word, slide, created_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        """INSERT INTO payments(user_id, proof_id, proof_unique_id, proof_kind, amount, days, word, slide, created_at, quiz)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
            ON CONFLICT (user_id, proof_unique_id) DO UPDATE SET proof_id=EXCLUDED.proof_id
            RETURNING *""",
         uid,
@@ -423,10 +432,11 @@ async def create_payment(uid: int, proof_id: str, unique_id: str, kind: str) -> 
         unique_id,
         kind,
         config.PAYMENT_AMOUNT,
-        config.PREMIUM_DAYS,
+        0,
         config.PRO_WORD,
         config.PRO_SLIDE,
         int(time.time()),
+        config.PRO_QUIZ,
     )
     return dict(row)
 
@@ -456,21 +466,19 @@ async def decide_payment(pid: int, admin_id: int, approve: bool) -> dict | None:
             return None
         if approve:
             await con.execute(
-                "UPDATE users SET premium_until=GREATEST(premium_until,$1)+$2, "
-                "word_left=CASE WHEN premium_until>$1 THEN word_left ELSE 0 END+$3, "
-                "slide_left=CASE WHEN premium_until>$1 THEN slide_left ELSE 0 END+$4 WHERE id=$5",
-                now,
-                row["days"] * 86400,
+                "UPDATE users SET premium_until=0, word_left=word_left+$2, "
+                "slide_left=slide_left+$3, quiz_left=quiz_left+$4 WHERE id=$1",
+                row["user_id"],
                 row["word"],
                 row["slide"],
-                row["user_id"],
+                row["quiz"],
             )
         return dict(row)
 
 
 async def reserve_job(uid: int, kind: str, payload: dict) -> dict | None:
     """Reserve one credit atomically before AI work, with a durable refund record."""
-    if kind not in ("word", "slide"):
+    if kind not in ("word", "slide", "quiz"):
         raise ValueError("Invalid quota kind")
     now, today = int(time.time()), day_start()
     async with POOL.acquire() as con, con.transaction():
@@ -480,8 +488,8 @@ async def reserve_job(uid: int, kind: str, payload: dict) -> dict | None:
         if await con.fetchval("SELECT 1 FROM ai_jobs WHERE user_id=$1 AND status='reserved'", uid):
             return {"busy": True}
         column = kind + "_left"
-        if user["premium_until"] > now and user[column] > 0:
-            source, period = kind, user["premium_until"]
+        if user[column] > 0:
+            source, period = kind, 0
             await con.execute(f"UPDATE users SET {column}={column}-1 WHERE id=$1", uid)
         else:
             used = user["daily_used"] if user["daily_reset"] >= today else 0
@@ -528,10 +536,8 @@ async def refund_job(job_id: int) -> bool:
         else:
             column = job["source"] + "_left"
             await con.execute(
-                f"UPDATE users SET {column}={column}+1 WHERE id=$1 AND premium_until >= $2 AND $2 > $3",
+                f"UPDATE users SET {column}={column}+1 WHERE id=$1",
                 uid,
-                job["period"],
-                int(time.time()),
             )
         return True
 
@@ -577,7 +583,14 @@ async def get_job(job_id: int, uid: int) -> dict | None:
 
 async def recover_interrupted_jobs() -> list[int]:
     # Startup only: this bot runs one polling process. No active worker is displaced.
-    rows = await POOL.fetch("SELECT id,user_id FROM ai_jobs WHERE status='reserved'")
+    rows = await POOL.fetch("""
+        SELECT j.id,j.user_id FROM ai_jobs j WHERE j.status='reserved'
+        AND NOT (j.kind='quiz' AND COALESCE(j.payload->>'interactive','false')='true' AND EXISTS (
+            SELECT 1 FROM fsm_record f WHERE f.user_id=j.user_id
+            AND f.data->'quiz'->>'job_id'=j.id::text
+            AND f.data->'quiz'->>'done'='false'
+        ))
+    """)
     recovered = []
     for row in rows:
         if await refund_job(row["id"]):
@@ -618,3 +631,21 @@ async def prune_expired_records() -> None:
         await con.execute(
             "DELETE FROM ai_jobs WHERE status != 'reserved' AND created_at <= $1", cutoff
         )
+
+
+async def complete_quiz(job_id: int, uid: int) -> bool:
+    """Charge a reserved interactive quiz once, without creating a file record."""
+    async with POOL.acquire() as con, con.transaction():
+        await con.fetchrow("SELECT id FROM users WHERE id=$1 FOR UPDATE", uid)
+        changed = await con.fetchval(
+            "UPDATE ai_jobs SET status='completed',finished_at=$3 "
+            "WHERE id=$1 AND user_id=$2 AND kind='quiz' AND status='reserved' RETURNING id",
+            job_id,
+            uid,
+            int(time.time()),
+        )
+        if changed:
+            await con.execute(
+                "UPDATE users SET docs=docs+1,last_seen=$2 WHERE id=$1", uid, int(time.time())
+            )
+        return bool(changed)

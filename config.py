@@ -25,10 +25,11 @@ FILE_RETENTION_DAYS = max(1, int(os.getenv("FILE_RETENTION_DAYS", "30")))
 MAX_PDF_PAGES = max(1, int(os.getenv("MAX_PDF_PAGES", "300")))
 MAX_TEXT_CHARS = max(1000, int(os.getenv("MAX_TEXT_CHARS", "120000")))
 
-# Pro paket (bir martalik): PREMIUM_DAYS kun ichida PRO_WORD ta Word + PRO_SLIDE ta slayd + quiz tahlili
+# Pro credits do not expire. PREMIUM_DAYS remains for legacy configuration compatibility.
 PREMIUM_DAYS = max(1, int(os.getenv("PREMIUM_DAYS", "30").strip() or "30"))
 PRO_WORD = max(0, int(os.getenv("PRO_WORD", "5").strip() or "5"))
 PRO_SLIDE = max(0, int(os.getenv("PRO_SLIDE", "5").strip() or "5"))
+PRO_QUIZ = max(0, int(os.getenv("PRO_QUIZ", "5").strip() or "5"))
 
 # Qo'lda to'lov uchun karta (faqat .env da — GitHub/gitga tushmaydi!)
 PAYMENT_CARD = os.getenv("PAYMENT_CARD", "").strip()

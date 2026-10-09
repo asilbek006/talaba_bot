@@ -11,7 +11,12 @@ from pathlib import Path
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramNetworkError,
+    TelegramRetryAfter,
+)
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -265,6 +270,7 @@ class St(StatesGroup):
     ttranslate = State()
     murojaat = State()
     pay_photo = State()
+    admin_reply = State()
 
 
 MODE_NAMES = {"ref": "Referat", "ppt": "Prezentatsiya", "xls": "Jadval", "test": "Test"}
@@ -578,22 +584,28 @@ async def cmd_grant(message: Message, bot: Bot):
     if message.from_user.id not in await db.admin_ids():
         return
     parts = (message.text or "").split()
-    if len(parts) != 3 or not parts[1].strip("-").isdigit() or not parts[2].isdigit():
+    if (
+        len(parts) not in (2, 3)
+        or not parts[1].isdigit()
+        or (len(parts) == 3 and not parts[2].isdigit())
+    ):
         await message.answer(t(DEFAULT_LANG, "grant_usage"))
         return
-    uid, days = int(parts[1]), int(parts[2])
-    if uid <= 0 or days <= 0:
+    uid, days = int(parts[1]), int(parts[2]) if len(parts) == 3 else 0
+    if uid <= 0:
         await message.answer(t(DEFAULT_LANG, "grant_usage"))
         return
     u = await db.get_user(uid)
     if not u:
         await message.answer(t(DEFAULT_LANG, "grant_nouser", uid=uid))
         return
-    await db.grant_package(uid, days, config.PRO_WORD, config.PRO_SLIDE)
-    await message.answer(t(DEFAULT_LANG, "granted", uid=uid, days=days))
+    await db.grant_package(uid, days, config.PRO_WORD, config.PRO_SLIDE, config.PRO_QUIZ)
+    await message.answer(t(DEFAULT_LANG, "granted", uid=uid))
     try:
         ulang = u.get("lang", DEFAULT_LANG)
-        await bot.send_message(uid, t(ulang, "premium_granted", days=days))
+        await bot.send_message(
+            uid, t(ulang, "pro_activated", w=config.PRO_WORD, s=config.PRO_SLIDE, q=config.PRO_QUIZ)
+        )
     except Exception as e:
         log.debug("Premium xabari yuborilmadi (%s): %s", uid, e)
 
@@ -617,6 +629,76 @@ async def cmd_broadcast(message: Message, bot: Bot):
             log.debug("Tarqatish (id=%s) xato: %s", u.get("id"), e)
         await asyncio.sleep(0.05)
     await message.answer(t(DEFAULT_LANG, "broadcast_done", ok=ok, fail=fail))
+
+
+async def send_admin_reply(message, state, bot, uid, text):
+    user = await db.get_user(uid)
+    if not user:
+        await message.reply("Foydalanuvchi topilmadi.")
+        return
+    try:
+        await bot.send_message(uid, t(user.get("lang", DEFAULT_LANG), "admin_reply", text=text))
+    except Exception:
+        log.exception("Support reply failed uid=%s", uid)
+        await message.reply(t(DEFAULT_LANG, "support_unavailable"))
+        return
+    await state.set_state(None)
+    await state.update_data(reply_to_uid=None)
+    await message.reply(t(DEFAULT_LANG, "reply_sent"))
+
+
+@router.callback_query(F.data.startswith("adm_rep:"))
+async def cb_admin_reply_click(call: CallbackQuery, state: FSMContext):
+    if call.from_user.id not in await db.admin_ids():
+        await call.answer()
+        return
+    uid = await db.support_recipient(call.message.chat.id, call.message.message_id)
+    if not uid or call.data != f"adm_rep:{uid}":
+        await call.answer(t(DEFAULT_LANG, "unknown"), show_alert=True)
+        return
+    await state.set_state(St.admin_reply)
+    await state.update_data(reply_to_uid=uid)
+    await call.message.reply(
+        f"✍️ ID: <code>{uid}</code> — javobingizni yozing. Bekor qilish: /cancel"
+    )
+    await call.answer()
+
+
+@router.message(Command("reply", "javob"))
+async def cmd_reply(message: Message, state: FSMContext, bot: Bot):
+    if message.from_user.id not in await db.admin_ids():
+        return
+    parts = (message.text or "").split(maxsplit=2)
+    if len(parts) != 3 or not parts[1].isdigit():
+        await message.reply("Foydalanish: <code>/reply &lt;user_id&gt; &lt;javob&gt;</code>")
+        return
+    await send_admin_reply(message, state, bot, int(parts[1]), parts[2])
+
+
+@router.message(St.admin_reply, F.text)
+async def on_admin_reply_text(message: Message, state: FSMContext, bot: Bot):
+    if message.from_user.id not in await db.admin_ids():
+        return
+    if message.text.strip() == "/cancel":
+        await state.set_state(None)
+        await state.update_data(reply_to_uid=None)
+        await message.reply("Javob bekor qilindi.")
+        return
+    uid = (await state.get_data()).get("reply_to_uid")
+    if uid:
+        await send_admin_reply(message, state, bot, uid, message.text)
+
+
+async def is_support_reply(message: Message):
+    if not message.reply_to_message or message.from_user.id not in await db.admin_ids():
+        return False
+    uid = await db.support_recipient(message.chat.id, message.reply_to_message.message_id)
+    return {"support_uid": uid} if uid else False
+
+
+@router.message(F.text, is_support_reply)
+async def on_reply_to_message(message: Message, state: FSMContext, bot: Bot, support_uid: int):
+    await send_admin_reply(message, state, bot, support_uid, message.text)
 
 
 @router.callback_query(F.data.startswith("l:"))
@@ -696,18 +778,26 @@ async def cb_mode(call: CallbackQuery, state: FSMContext):
         await call.answer()
         return
     if mode == "premium":
-        pro, words, slides = await db.package_status(call.from_user.id)
+        pro, words, slides, quizzes = await db.package_status(call.from_user.id)
         _, used = await db.daily_status(call.from_user.id)
         balance = t(
             lang,
             "quota_balance",
             w=words if pro else 0,
             s=slides if pro else 0,
+            q=quizzes if pro else 0,
             free=max(0, config.DAILY_LIMIT - used),
         )
         await safe_edit(
             call.message,
-            t(lang, "premium_msg", n=config.DAILY_LIMIT, w=config.PRO_WORD, s=config.PRO_SLIDE)
+            t(
+                lang,
+                "premium_msg",
+                n=config.DAILY_LIMIT,
+                w=config.PRO_WORD,
+                s=config.PRO_SLIDE,
+                q=config.PRO_QUIZ,
+            )
             + "\n\n"
             + balance,
             kb_premium(lang),
@@ -753,6 +843,7 @@ async def cb_premium_buy(call: CallbackQuery, state: FSMContext):
             days=config.PREMIUM_DAYS,
             w=config.PRO_WORD,
             s=config.PRO_SLIDE,
+            q=config.PRO_QUIZ,
         ),
         kb_back(lang),
     )
@@ -770,7 +861,8 @@ def payment_keyboard(pid: int):
 async def forward_payment(bot: Bot, admin_id: int, payment: dict):
     caption = (
         f"💰 Toʻlov #{payment['id']}\n🆔 ID: {payment['user_id']}\n"
-        f"💵 {esc(payment['amount'])} soʻm\n📦 {payment['days']} kun Pro"
+        f"💵 {esc(payment['amount'])} soʻm\n📦 Muddatsiz Pro: "
+        f"{payment['word']} Word, {payment['slide']} prezentatsiya, {payment['quiz']} quiz"
     )
     send = bot.send_photo if payment["proof_kind"] == "photo" else bot.send_document
     await send(
@@ -857,7 +949,7 @@ async def _pay_decision(call: CallbackQuery, bot: Bot, ok: bool):
     lang = (u or {}).get("lang", DEFAULT_LANG)
     try:
         text = (
-            t(lang, "pro_activated", days=payment["days"], w=payment["word"], s=payment["slide"])
+            t(lang, "pro_activated", w=payment["word"], s=payment["slide"], q=payment["quiz"])
             if ok
             else t(lang, "pay_rejected")
         )
@@ -915,7 +1007,7 @@ async def _generate(target: Message, state: FSMContext, uid: int, bot: Bot):
         await target.answer(t(lang, "unknown"), reply_markup=kb_menu(lang))
         return
     topic, n = data["topic"], data["count"]
-    kind = "slide" if mode == "ppt" else "word"
+    kind = "slide" if mode == "ppt" else ("quiz" if mode == "test" else "word")
 
     async def produce():
         path = new_file(uid, mode, "." + MODES[mode]["ext"])
@@ -1015,6 +1107,8 @@ async def finish_quiz(msg, state: FSMContext):
         return
     if quiz.get("done"):
         return
+    if quiz.get("job_id"):
+        await db.complete_quiz(quiz["job_id"], quiz["uid"])
     quiz["done"] = True
     await state.update_data(quiz=quiz)
     if await state.get_state() == St.quiz_active.state:
@@ -1034,8 +1128,8 @@ async def finish_quiz(msg, state: FSMContext):
         log.debug("Quiz natijasini ko'rsatishda xatolik: %s", e)
     uid = quiz.get("uid")
     if uid:
-        pro, _, _ = await db.package_status(uid)
-        if pro:
+        pro = (await db.package_status(uid))[0]
+        if pro or quiz.get("pro"):
             try:
                 for chunk in split_text(quiz_analysis_text(quiz, lang)):
                     await msg.answer(chunk, reply_markup=kb_back(lang))
@@ -1108,6 +1202,8 @@ def cancel_quiz_timer(session_id):
 async def cancel_quiz(state):
     quiz = (await state.get_data()).get("quiz")
     if quiz and not quiz.get("done"):
+        if quiz.get("job_id"):
+            await db.refund_job(quiz["job_id"])
         quiz["done"] = True
         await state.update_data(quiz=quiz)
     if quiz:
@@ -1206,30 +1302,41 @@ async def on_quiz_time(message: Message, state: FSMContext):
         await message.answer(t(lang, "bad_range", lo=1, hi=120))
         return
     await cancel_quiz(state)
-    quiz = {
-        "id": uuid.uuid4().hex[:16],
-        "uid": message.from_user.id,
-        "qs": data["quiz_bank"][: data["quiz_n"]],
-        "i": 0,
-        "score": 0,
-        "n": data["quiz_n"],
-        "deadline": time.time() + mins * 60,
-        "done": False,
-    }
-    await state.update_data(quiz=quiz, quiz_bank=[])
-    wait = await message.answer(t(lang, "working"))
-    i = 0
-    q = quiz["qs"][i]
-    remaining = mins * 60
-    mm, ss = divmod(remaining, 60)
-    text = t(lang, "quiz_q", i=i + 1, n=quiz["n"], mm=mm, ss=ss, q=q["q"])
-    await delete_quietly(wait)
-    sent = await message.answer(text, reply_markup=kb_quiz(lang, q, i, quiz["id"]))
-    quiz["msg_id"] = sent.message_id
-    quiz["chat_id"] = sent.chat.id
-    await state.update_data(quiz=quiz)
-    await state.set_state(St.quiz_active)
-    schedule_quiz(sent, state, quiz)
+    job = await begin_job(message.from_user.id, "quiz", message, state, {"interactive": True})
+    if not job:
+        return
+    try:
+        quiz = {
+            "id": uuid.uuid4().hex[:16],
+            "uid": message.from_user.id,
+            "job_id": job["id"],
+            "pro": job["source"] == "quiz",
+            "qs": data["quiz_bank"][: data["quiz_n"]],
+            "i": 0,
+            "score": 0,
+            "n": data["quiz_n"],
+            "deadline": time.time() + mins * 60,
+            "done": False,
+        }
+        await state.update_data(quiz=quiz, quiz_bank=[])
+        wait = await message.answer(t(lang, "working"))
+        i = 0
+        q = quiz["qs"][i]
+        remaining = mins * 60
+        mm, ss = divmod(remaining, 60)
+        text = t(lang, "quiz_q", i=i + 1, n=quiz["n"], mm=mm, ss=ss, q=q["q"])
+        await delete_quietly(wait)
+        sent = await message.answer(text, reply_markup=kb_quiz(lang, q, i, quiz["id"]))
+        quiz["msg_id"] = sent.message_id
+        quiz["chat_id"] = sent.chat.id
+        await state.update_data(quiz=quiz)
+        await state.set_state(St.quiz_active)
+        schedule_quiz(sent, state, quiz)
+    except BaseException:
+        await db.refund_job(job["id"])
+        await cancel_quiz(state)
+        await state.update_data(quiz_bank=data["quiz_bank"])
+        raise
 
 
 @router.callback_query(F.data.startswith("q:"))
@@ -1841,6 +1948,9 @@ async def on_murojaat(message: Message, state: FSMContext, bot: Bot):
                 aid,
                 f"💬 <b>YANGI MUROJAAT / SUPPORT</b>\n👤 {esc(uname)} ({esc(u)})"
                 f"\n🆔 ID: <code>{message.from_user.id}</code>\n\n{esc(text)}",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[btn("✍️ Javob yozish", f"adm_rep:{message.from_user.id}")]]
+                ),
             )
             await db.remember_support_reply(aid, sent.message_id, message.from_user.id)
             delivered += 1
@@ -2027,6 +2137,16 @@ def create_dispatcher(storage):
     return dp
 
 
+async def wait_for_telegram(bot):
+    while True:
+        try:
+            await bot.get_me()
+            return
+        except (TelegramNetworkError, TelegramRetryAfter, asyncio.TimeoutError) as exc:
+            log.warning("Internet / Telegram ulanishi kutilmoqda: %s", type(exc).__name__)
+            await asyncio.sleep(getattr(exc, "retry_after", 5))
+
+
 async def main():
     if not config.BOT_TOKEN:
         raise SystemExit("TELEGRAM_BOT_TOKEN topilmadi — .env faylini toʻldiring")
@@ -2042,6 +2162,7 @@ async def main():
         )
         if not locked:
             raise RuntimeError("Bu botning boshqa nusxasi allaqachon ishlayapti")
+        await wait_for_telegram(bot)
         recovered = await db.recover_interrupted_jobs()
         for uid in recovered:
             try:

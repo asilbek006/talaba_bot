@@ -43,6 +43,7 @@ def test_env_ignored_in_git():
 def test_pro_package_config_positive():
     assert config.PRO_WORD >= 0
     assert config.PRO_SLIDE >= 0
+    assert config.PRO_QUIZ >= 0
     assert config.PREMIUM_DAYS >= 1
 
 
@@ -138,7 +139,9 @@ def test_pay_decision_approve_renders_pro_activated(monkeypatch):
     monkeypatch.setattr(
         bot.db,
         "decide_payment",
-        AsyncMock(return_value={"id": 42, "user_id": 777, "days": 30, "word": 5, "slide": 5}),
+        AsyncMock(
+            return_value={"id": 42, "user_id": 777, "days": 30, "word": 5, "slide": 5, "quiz": 5}
+        ),
     )
     call = _FakeCall("pay:ok:v2:42")
     asyncio.run(bot._pay_decision(call, fake_bot, ok=True))
