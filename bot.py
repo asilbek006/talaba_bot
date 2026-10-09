@@ -7,10 +7,11 @@ from pathlib import Path
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import (BotCommand, CallbackQuery, FSInputFile,
+from aiogram.types import (BotCommand, CallbackQuery, ErrorEvent, FSInputFile,
                            InlineKeyboardButton, InlineKeyboardMarkup, Message)
 
 import config
@@ -27,6 +28,22 @@ from services.fsm_pg import PostgresStorage
 from i18n import DEFAULT_LANG, LANGS, t
 
 router = Router()
+
+
+@router.error()
+async def global_error_handler(event: ErrorEvent):
+    ex = event.exception
+    if isinstance(ex, TelegramForbiddenError):
+        log.info("Foydalanuvchi botni bloklagan (xabar yuborilmadi): %s", ex)
+        return True
+    if isinstance(ex, TelegramBadRequest):
+        msg = str(ex).lower()
+        if "query is too old" in msg or "message is not modified" in msg or "message to edit not found" in msg:
+            log.info("TelegramBadRequest e'tiborga olinmadi: %s", ex)
+            return True
+    log.exception("Update qayta ishlashda xatolik: %s", ex)
+    return True
+
 
 _busy: set[int] = set()
 

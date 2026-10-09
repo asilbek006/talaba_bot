@@ -12,6 +12,7 @@ bot.log
 logs/
 files/
 *.log
+*.pid
 
 # Foydalanuvchi ma'lumotlari (failback JSON)
 users.json
