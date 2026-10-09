@@ -1621,6 +1621,16 @@ async def main():
     bot = Bot(config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=PostgresStorage())
     dp.include_router(router)
+
+    # Internet va Telegram bilan aloqa o'rnatilishini kutish (kompyuter yangi yonganda)
+    while True:
+        try:
+            await bot.get_me()
+            break
+        except Exception as e:
+            log.warning("Internet / Telegram ulanishi kutilmoqda: %s", e)
+            await asyncio.sleep(5)
+
     await bot.set_my_commands([
         BotCommand(command="start", description="🏠 Bosh sahifa"),
         BotCommand(command="help", description="❓ Yordam"),
