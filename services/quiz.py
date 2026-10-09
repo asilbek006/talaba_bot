@@ -45,11 +45,11 @@ ANSWER_MAP = {
     "1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5,
 }
 
-Q_RE = re.compile(r"^\s*(savol|question|вопрос)\s*[:.\-)]*\s*", re.I)
+Q_RE = re.compile(r"^\s*(savol|савол|question|вопрос)\s*[:.\-)]*\s*", re.I)
 NUM_RE = re.compile(r"^\s*\d+\s*[.)]\s*")
-OPT_RE = re.compile(r"^\s*([\+\*\-]?\s*\[?([A-Ha-hА-Еа-е])\]?[\s.)\-:])\s*")
+OPT_RE = re.compile(r"^\s*([\+\*\-]?\s*\[?([A-Ha-hа-яА-Я])\]?[\s.)\-:])\s*")
 ANS_RE = re.compile(
-    r"(?:to[ʻ'’`]?g[ʻ'’`]?ri\s*javob|javob[a-z]*|answer|ответ|прав[a-z]*\s*ответ)\s*[:.\-)]*\s*\**\s*([a-hA-Hа-еА-Е0-9])(?=\s*[)\s.]|$)",
+    r"(?:to[ʻ'’`]?g[ʻ'’`]?ri\s*javob|javob\w*|жавоб\w*|answer|ответ\w*|прав\w*\s*ответ)\s*[:.\-)]*\s*\**\s*([a-hA-Hа-яА-Я0-9])(?=\s*[)\s.]|$)",
     re.I,
 )
 

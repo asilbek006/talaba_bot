@@ -411,6 +411,33 @@ def kb_quiz(lang: str, q: dict, qidx: int, session_id: str) -> InlineKeyboardMar
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+def kb_quiz_count(lang: str, total: int) -> InlineKeyboardMarkup:
+    rows = []
+    steps = [5, 10, 15, 20, 25, 30, 50]
+    avail = [s for s in steps if s < total]
+    chunk = []
+    for s in avail:
+        chunk.append(btn(f"{s} ta", f"qc:{s}"))
+        if len(chunk) == 3:
+            rows.append(chunk)
+            chunk = []
+    if chunk:
+        rows.append(chunk)
+    rows.append([btn(f"✅ {total} ta (barchasi)", f"qc:{total}")])
+    rows.append([btn(t(lang, "back"), "back")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def kb_quiz_time(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [btn("⏱ 15 sek", "qt:15"), btn("⏱ 30 sek", "qt:30"), btn("⏱ 45 sek", "qt:45")],
+            [btn("⏱ 60 sek", "qt:60"), btn("⏱ 90 sek", "qt:90"), btn("⏱ 120 sek", "qt:120")],
+            [btn(t(lang, "back"), "back")],
+        ]
+    )
+
+
 def kb_about(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -1264,22 +1291,34 @@ def schedule_quiz(msg, state, quiz):
     )
 
 
+async def setup_quiz_bank(target: Message, state: FSMContext, qs: list[dict], lang: str):
+    await state.update_data(quiz_bank=qs)
+    await state.set_state(St.quiz_count)
+    lo = min(5, len(qs))
+    hi = min(100, len(qs))
+    await target.answer(
+        t(lang, "quiz_count", n=hi, lo=lo),
+        reply_markup=kb_quiz_count(lang, len(qs)),
+    )
+
+
 @router.message(St.quiz_file, F.document)
 async def on_quiz_file(message: Message, state: FSMContext, bot: Bot):
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
     doc = message.document
-    if not (doc.file_name or "").lower().endswith(".docx"):
-        await message.answer(t(lang, "quiz_bad"))
+    fname = (doc.file_name or "").lower()
+    ext = Path(fname).suffix.lower()
+    if ext not in (".docx", ".txt", ".xlsx", ".xls", ".csv"):
+        await message.answer(t(lang, "quiz_bad"), reply_markup=kb_back(lang))
         return
     if doc_too_big(doc):
         await message.answer(t(lang, "file_too_big"))
         return
     wait = await message.answer(t(lang, "conv_busy"))
-    src = new_file(message.from_user.id, "bank", ".docx")
+    src = new_file(message.from_user.id, "bank", ext or ".docx")
     try:
         await bot.download(doc, destination=src)
-        lines = await run_blocking(_document_lock, quiz_tool.extract_docx, src)
-        qs = await run_blocking(_document_lock, quiz_tool.parse_questions, lines)
+        qs = await run_blocking(_document_lock, quiz_tool.extract_questions_from_file, src)
     except Exception as e:
         log.warning("Savol banki o'qilmadi (%s): %s", src, e)
         await delete_quietly(wait)
@@ -1289,19 +1328,46 @@ async def on_quiz_file(message: Message, state: FSMContext, bot: Bot):
     if len(qs) < 2:
         await message.answer(t(lang, "quiz_bad"), reply_markup=kb_back(lang))
         return
-    await state.update_data(quiz_bank=qs)
-    await state.set_state(St.quiz_count)
-    lo = min(5, len(qs))
-    await message.answer(t(lang, "quiz_count", n=min(100, len(qs)), lo=lo))
+    await setup_quiz_bank(message, state, qs, lang)
+
+
+@router.message(St.quiz_file, F.text)
+async def on_quiz_text(message: Message, state: FSMContext):
+    lang = (await state.get_data()).get("lang", DEFAULT_LANG)
+    qs = quiz_tool.extract_questions_from_text(message.text)
+    if len(qs) < 2:
+        await message.answer(t(lang, "quiz_bad"), reply_markup=kb_back(lang))
+        return
+    await setup_quiz_bank(message, state, qs, lang)
+
+
+@router.callback_query(F.data.startswith("qc:"))
+async def cb_quiz_count(call: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("lang", DEFAULT_LANG)
+    bank = data.get("quiz_bank") or []
+    try:
+        n = int(call.data.split(":")[1])
+    except Exception:
+        await call.answer()
+        return
+    lo = min(5, len(bank))
+    if not (lo <= n <= min(100, len(bank))):
+        n = min(100, len(bank))
+    await state.update_data(quiz_n=n)
+    await state.set_state(St.quiz_time)
+    await safe_edit(call.message, t(lang, "quiz_time"), kb_quiz_time(lang))
+    await call.answer()
 
 
 @router.message(St.quiz_count, F.text)
 async def on_quiz_count(message: Message, state: FSMContext):
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
     data = await state.get_data()
-    bank = data["quiz_bank"]
+    bank = data.get("quiz_bank") or []
     try:
-        n = int(message.text.strip())
+        match = re.search(r"\d+", message.text)
+        n = int(match.group()) if match else int(message.text.strip())
     except Exception:
         await message.answer(t(lang, "bad_number"))
         return
@@ -1311,47 +1377,42 @@ async def on_quiz_count(message: Message, state: FSMContext):
         return
     await state.update_data(quiz_n=n)
     await state.set_state(St.quiz_time)
-    await message.answer(t(lang, "quiz_time"))
+    await message.answer(t(lang, "quiz_time"), reply_markup=kb_quiz_time(lang))
 
 
-@router.message(St.quiz_time, F.text)
-async def on_quiz_time(message: Message, state: FSMContext):
-    lang = (await state.get_data()).get("lang", DEFAULT_LANG)
+async def start_quiz_session(target: Message, state: FSMContext, sec: int, uid: int, is_callback=False):
     data = await state.get_data()
-    try:
-        mins = int(message.text.strip())
-    except Exception:
-        await message.answer(t(lang, "bad_number"))
-        return
-    if not (1 <= mins <= 120):
-        await message.answer(t(lang, "bad_range", lo=1, hi=120))
-        return
+    lang = data.get("lang", DEFAULT_LANG)
     await cancel_quiz(state)
-    job = await begin_job(message.from_user.id, "quiz", message, state, {"interactive": True})
+    job = await begin_job(uid, "quiz", target, state, {"interactive": True})
     if not job:
         return
     try:
+        n = data.get("quiz_n") or len(data.get("quiz_bank", [])) or 5
+        total_seconds = n * sec
         quiz = {
             "id": uuid.uuid4().hex[:16],
-            "uid": message.from_user.id,
+            "uid": uid,
             "job_id": job["id"],
             "pro": job["source"] == "quiz",
-            "qs": data["quiz_bank"][: data["quiz_n"]],
+            "qs": data["quiz_bank"][:n],
             "i": 0,
             "score": 0,
-            "n": data["quiz_n"],
-            "deadline": time.time() + mins * 60,
+            "n": n,
+            "sec_per_q": sec,
+            "deadline": time.time() + total_seconds,
             "done": False,
         }
         await state.update_data(quiz=quiz, quiz_bank=[])
-        wait = await message.answer(t(lang, "working"))
         i = 0
         q = quiz["qs"][i]
-        remaining = mins * 60
-        mm, ss = divmod(remaining, 60)
+        mm, ss = divmod(total_seconds, 60)
         text = t(lang, "quiz_q", i=i + 1, n=quiz["n"], mm=mm, ss=ss, q=q["q"])
-        await delete_quietly(wait)
-        sent = await message.answer(text, reply_markup=kb_quiz(lang, q, i, quiz["id"]))
+        if is_callback:
+            await safe_edit(target, text, kb_quiz(lang, q, i, quiz["id"]))
+            sent = target
+        else:
+            sent = await target.answer(text, reply_markup=kb_quiz(lang, q, i, quiz["id"]))
         quiz["msg_id"] = sent.message_id
         quiz["chat_id"] = sent.chat.id
         await state.update_data(quiz=quiz)
@@ -1360,8 +1421,38 @@ async def on_quiz_time(message: Message, state: FSMContext):
     except BaseException:
         await db.refund_job(job["id"])
         await cancel_quiz(state)
-        await state.update_data(quiz_bank=data["quiz_bank"])
+        await state.update_data(quiz_bank=data.get("quiz_bank", []))
         raise
+
+
+@router.callback_query(F.data.startswith("qt:"))
+async def cb_quiz_time(call: CallbackQuery, state: FSMContext):
+    try:
+        sec = int(call.data.split(":")[1])
+    except Exception:
+        await call.answer()
+        return
+    await call.answer()
+    await start_quiz_session(call.message, state, sec, call.from_user.id, is_callback=True)
+
+
+@router.message(St.quiz_time, F.text)
+async def on_quiz_time(message: Message, state: FSMContext):
+    lang = (await state.get_data()).get("lang", DEFAULT_LANG)
+    try:
+        match = re.search(r"\d+", message.text)
+        raw_num = int(match.group()) if match else int(message.text.strip())
+    except Exception:
+        await message.answer(t(lang, "bad_number"))
+        return
+    if 1 <= raw_num <= 5:
+        sec = raw_num * 60
+    elif 10 <= raw_num <= 600:
+        sec = raw_num
+    else:
+        await message.answer(t(lang, "bad_range", lo=10, hi=600))
+        return
+    await start_quiz_session(message, state, sec, message.from_user.id, is_callback=False)
 
 
 @router.callback_query(F.data.startswith("q:"))
