@@ -70,7 +70,7 @@ LANGS = {
         "limit_msg": "📄 Kunlik bepul limit (kuniga {n} ta AI hujjat) tugadi.\n\nBepul imkoniyat ertaga yangilanadi yoki ⭐ Premium oling — cheksiz hujjatlar.",
         "queue": "⏳ Boshqa soʻrovlar ham tayyorlanayapti.\nQator raqamingiz: {pos}\nBiroz kuting...",
         "premium_buy_btn": "Sotib olish",
-        "pay_manual": "💳 <b>Pro paket</b> — {days} kun\n\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta slayd\n• 📊 Quiz tahlili\n\n💵 Summa: <b>15 000 soʻm</b>\n🏦 Karta: <code>{card}</code>\n👤 Egas: {holder}\n\nToʻlovni amalga oshirib, <b>chek (screenshot)</b>ni shu yerga yuboring.\nAdmin tekshirgach Pro paket yoqiladi.",
+        "pay_manual": "💳 <b>Pro paket</b> — {days} kun\n\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta slayd\n• 📊 Quiz tahlili\n\n💵 Summa: <b>15 000 soʻm</b>\n🏦 Karta: <code>{card}</code>\n👤 Egasi: {holder}\n\nToʻlovni amalga oshirib, <b>chek (screenshot)</b>ni shu yerga yuboring.\nAdmin tekshirgach Pro paket yoqiladi.",
         "pay_proof_sent": "✅ Chek qabul qilindi!\n\nAdmin tekshirishi kutilmoqda (odatda tez). Tasdiqlangach xabar boradi.",
         "pay_rejected": "❌ Toʻlov tasdiqlanmadi.\n\nSavol boʻlsa adminga murojaat qiling.",
         "pay_ok_admin": "✅ Tasdiqlandi",
