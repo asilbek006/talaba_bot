@@ -6,6 +6,7 @@ from google import genai
 from google.genai import types
 
 from config import GEMINI_API_KEY, GEMINI_MODEL
+from services.langdetect import detect_lang
 
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
@@ -147,8 +148,10 @@ def gen_referat(lang: str, topic: str, pages: int) -> dict:
     words = content_pages * 300
     sections = min(14, max(4, pages // 2 + 1))
     words_per_section = max(150, words // sections)
+    dlang = detect_lang(topic)
+    tlang = dlang or lang
     prompt = REFERAT_PROMPT.format(
-        topic=topic, lang=LANG_NAMES.get(lang, lang),
+        topic=topic, lang=LANG_NAMES.get(tlang, tlang),
         words=words, sections=sections, words_per_section=words_per_section)
     data = _ask_validated(prompt, _ref_ok)
     if not _topic_ok(topic, data):
@@ -181,7 +184,9 @@ def _ppt_ok(data) -> bool:
 
 
 def gen_pptx(lang: str, topic: str, n: int) -> dict:
-    prompt = PPTX_PROMPT.format(topic=topic, lang=LANG_NAMES.get(lang, lang), n=n)
+    dlang = detect_lang(topic)
+    tlang = dlang or lang
+    prompt = PPTX_PROMPT.format(topic=topic, lang=LANG_NAMES.get(tlang, tlang), n=n)
     data = _ask_validated(prompt, _ppt_ok)
     if not _topic_ok(topic, data):
         data = _ask_validated(prompt + f'\nMuhim: oldingi javobing "{topic}" mavzusiga mos emas edi. '
@@ -206,7 +211,9 @@ def _xls_ok(data) -> bool:
 
 
 def gen_xlsx(lang: str, topic: str, rows: int) -> dict:
-    prompt = XLSX_PROMPT.format(topic=topic, lang=LANG_NAMES.get(lang, lang), rows=rows)
+    dlang = detect_lang(topic)
+    tlang = dlang or lang
+    prompt = XLSX_PROMPT.format(topic=topic, lang=LANG_NAMES.get(tlang, tlang), rows=rows)
     data = _ask_validated(prompt, _xls_ok)
     if len(data.get("rows", [])) != rows:
         data = _ask_validated(prompt +
@@ -300,7 +307,9 @@ Boshqa hech narsa yozma."""
 
 
 def gen_ppt_from_text(lang: str, text: str, n: int) -> dict:
-    data = _ask_validated(PPTX_FROM_TEXT_PROMPT.format(lang=LANG_NAMES.get(lang, lang), n=n, text=text[:20000]), _ppt_ok)
+    dlang = detect_lang(text)
+    tlang = dlang or lang
+    data = _ask_validated(PPTX_FROM_TEXT_PROMPT.format(lang=LANG_NAMES.get(tlang, tlang), n=n, text=text[:20000]), _ppt_ok)
     data.setdefault("title", "")
     data.setdefault("slides", [])
     if len(data.get("slides", [])) > n:

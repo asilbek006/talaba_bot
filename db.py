@@ -69,6 +69,7 @@ async def _migrate() -> None:
             ("daily_reset", "ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_reset bigint NOT NULL DEFAULT 0"),
             ("word_left", "ALTER TABLE users ADD COLUMN IF NOT EXISTS word_left int NOT NULL DEFAULT 0"),
             ("slide_left", "ALTER TABLE users ADD COLUMN IF NOT EXISTS slide_left int NOT NULL DEFAULT 0"),
+            ("quiz_left", "ALTER TABLE users ADD COLUMN IF NOT EXISTS quiz_left int NOT NULL DEFAULT 0"),
         ]:
             await con.execute(ddl)
     jf = BASE_DIR / "users.json"
@@ -192,28 +193,38 @@ async def grant_premium(uid: int, days: int) -> None:
         now, int(days) * 86400, uid)
 
 
-async def grant_package(uid: int, days: int, word: int, slide: int) -> None:
-    """Pro paket: davr + Word/slayd kvotalari (kamaytirmaydi)."""
+async def grant_package(uid: int, days: int = 3650, word: int = 5, slide: int = 5, quiz: int = 5) -> None:
+    """Pro paket: Word, Slayd va Quiz kvotalari. Limitlar tugaguncha amal qiladi."""
     now = int(time.time())
+    until = now + 10 * 365 * 86400
     await POOL.execute(
-        "UPDATE users SET premium_until = GREATEST(premium_until, $1) + $2, "
-        "word_left = GREATEST(word_left, $3), slide_left = GREATEST(slide_left, $4) "
+        "UPDATE users SET premium_until = $1, "
+        "word_left = GREATEST(word_left, $2), "
+        "slide_left = GREATEST(slide_left, $3), "
+        "quiz_left = GREATEST(quiz_left, $4) "
         "WHERE id=$5",
-        now, int(days) * 86400, int(word), int(slide), uid)
+        until, int(word), int(slide), int(quiz), uid)
 
 
-async def package_status(uid: int) -> tuple[bool, int, int]:
-    """(pro, word_left, slide_left) — pro = premium_until hozirgi vaqtdan keyin."""
+async def package_status(uid: int) -> tuple[bool, int, int, int]:
+    """(pro, word_left, slide_left, quiz_left) — kvotalardan birortasi qolgan bo'lsa pro = True."""
     u = await get_user(uid)
     if not u:
-        return False, 0, 0
-    now = int(time.time())
-    pro = int(u.get("premium_until") or 0) > now
-    return pro, int(u.get("word_left") or 0), int(u.get("slide_left") or 0)
+        return False, 0, 0, 0
+    w = int(u.get("word_left") or 0)
+    s = int(u.get("slide_left") or 0)
+    q = int(u.get("quiz_left") or 0)
+    pro = (w > 0 or s > 0 or q > 0)
+    return pro, w, s, q
 
 
 async def consume_package(uid: int, kind: str) -> None:
-    col = "word_left" if kind == "word" else "slide_left"
+    if kind == "word":
+        col = "word_left"
+    elif kind == "slide":
+        col = "slide_left"
+    else:
+        col = "quiz_left"
     await POOL.execute(
         f"UPDATE users SET {col} = GREATEST({col} - 1, 0) WHERE id=$1", uid)
 

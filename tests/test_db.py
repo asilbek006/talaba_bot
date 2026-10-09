@@ -94,22 +94,25 @@ def test_grant_premium(pg):
 def test_package_quota(pg):
     uid = 9_000_000_045 + int(time.time()) % 1000
     run(db.upsert_user(uid, "Q", "", "uz"))
-    pro, wl, sl = run(db.package_status(uid))
-    assert pro is False and wl == 0 and sl == 0
-    run(db.grant_package(uid, 30, 3, 2))
-    pro, wl, sl = run(db.package_status(uid))
-    assert pro is True and wl == 3 and sl == 2
+    pro, wl, sl, ql = run(db.package_status(uid))
+    assert pro is False and wl == 0 and sl == 0 and ql == 0
+    run(db.grant_package(uid, 30, 3, 2, 4))
+    pro, wl, sl, ql = run(db.package_status(uid))
+    assert pro is True and wl == 3 and sl == 2 and ql == 4
     run(db.consume_package(uid, "word"))
     run(db.consume_package(uid, "word"))
-    _, wl2, _ = run(db.package_status(uid))
+    _, wl2, _, _ = run(db.package_status(uid))
     assert wl2 == 1
     run(db.consume_package(uid, "slide"))
-    _, _, sl2 = run(db.package_status(uid))
+    _, _, sl2, _ = run(db.package_status(uid))
     assert sl2 == 1
+    run(db.consume_package(uid, "quiz"))
+    _, _, _, ql2 = run(db.package_status(uid))
+    assert ql2 == 3
     # takror xarid kamaytirmaydi (GREATEST)
-    run(db.grant_package(uid, 5, 1, 1))
-    _, wl3, sl3 = run(db.package_status(uid))
-    assert wl3 == 1 and sl3 == 1
+    run(db.grant_package(uid, 5, 1, 1, 1))
+    _, wl3, sl3, ql3 = run(db.package_status(uid))
+    assert wl3 == 1 and sl3 == 1 and ql3 == 3
     run(cleanup_users([uid]))
 
 

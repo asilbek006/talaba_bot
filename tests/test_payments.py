@@ -37,6 +37,7 @@ def test_env_ignored_in_git():
 def test_pro_package_config_positive():
     assert config.PRO_WORD >= 0
     assert config.PRO_SLIDE >= 0
+    assert config.PRO_QUIZ >= 0
     assert config.PREMIUM_DAYS >= 1
 
 

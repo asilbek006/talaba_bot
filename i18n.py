@@ -50,7 +50,7 @@ LANGS = {
         "praise_hi": "Zoʻr natija! 🚀",
         "praise_mid": "Yaxshi, yana mashq qiling 💪",
         "praise_lo": "Qayta urinib koʻring, muvaffaqiyat! 📚",
-        "premium_msg": "⭐ PRO PAKET\n\nBepul rejimda kuniga {n} ta AI hujjat. Pro paket beradi:\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta slayd\n• 📊 Quiz tahlili\n\n💳 Toʻlov karta orqali: “Sotib olish”ni bosing → chek yuboring → admin tasdiqlaydi.",
+        "premium_msg": "⭐ PRO PAKET\n\nBepul rejimda kuniga {n} ta AI hujjat. Pro paket beradi:\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta slayd\n• 🧩 {q} marta Quiz\n\n💳 Toʻlov karta orqali: “Sotib olish”ni bosing → chek yuboring → admin tasdiqlaydi.",
         "about_text": "👥 BIZ HAQIMIZDA\n\n🎓 TalabaBot — talabalar uchun AI yordamchi:\n referat, prezentatsiya, jadvall, testlar, tarjima va boshqalar.\n\nSavol yoki taklifingiz boʻlsa — \"✍️ Murojaat yozish\" tugmasini bosing, admin javob beradi.",
         "ask_murojaat": "📮 Murojaatingizni yozing. Admin javob beradi.\n\nFikr, savol, taklif yoki muammo — hammasini yozing.",
         "murojaat_sent": "✅ Murojaatingiz adminga yuborildi. Javob kelganda koʻrasiz!",
@@ -70,15 +70,16 @@ LANGS = {
         "limit_msg": "📄 Kunlik bepul limit (kuniga {n} ta AI hujjat) tugadi.\n\nBepul imkoniyat ertaga yangilanadi yoki ⭐ Premium oling — cheksiz hujjatlar.",
         "queue": "⏳ Boshqa soʻrovlar ham tayyorlanayapti.\nQator raqamingiz: {pos}\nBiroz kuting...",
         "premium_buy_btn": "Sotib olish",
-        "pay_manual": "💳 <b>Pro paket</b> — {days} kun\n\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta slayd\n• 📊 Quiz tahlili\n\n💵 Summa: <b>15 000 soʻm</b>\n🏦 Karta: <code>{card}</code>\n👤 Egasi: {holder}\n\nToʻlovni amalga oshirib, <b>chek (screenshot)</b>ni shu yerga yuboring.\nAdmin tekshirgach Pro paket yoqiladi.",
+        "pay_manual": "💳 <b>Pro paket</b>\n\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta slayd\n• 🧩 {q} marta Quiz\n\n💵 Summa: <b>15 000 soʻm</b>\n🏦 Karta: <code>{card}</code>\n👤 Egasi: {holder}\n\nToʻlovni amalga oshirib, <b>chek (screenshot)</b>ni shu yerga yuboring.\nAdmin tekshirgach Pro paket yoqiladi.",
         "pay_proof_sent": "✅ Chek qabul qilindi!\n\nAdmin tekshirishi kutilmoqda (odatda tez). Tasdiqlangach xabar boradi.",
         "pay_rejected": "❌ Toʻlov tasdiqlanmadi.\n\nSavol boʻlsa adminga murojaat qiling.",
         "pay_ok_admin": "✅ Tasdiqlandi",
         "pay_no_admin": "❌ Rad etildi",
-        "pro_activated": "🎉 Pro paket {days} kun yoqildi!\n\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta slayd\n• 📊 Quiz tahlili\n\nEndi cheklovlar kalitlari yangilandi. Yaxshi ish!",
+        "pro_activated": "🎉 Pro paket yoqildi!\n\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta slayd\n• 🧩 {q} marta Quiz\n\nLimitlar berildi. Har bir limit tugagach yangi paket xarid qilishingiz mumkin!",
         "pro_limit_msg": "⛔ {what} limiti tugadi.\n\nYangi paket uchun ⭐ Premium tugmasini bosing.",
         "unit_word": "Word hujjat",
         "unit_slide": "Slayd",
+        "unit_quiz": "Quiz",
         "pay_not_configured": "💳 Toʻlov hali sozlanmagan.\n\nTez orada ishga tushadi.",
         "pay_not_configured_kb": "💳 Toʻlov sozlanmagan.\n\n`.env` fayliga kartani qoʻshing:\n<code>PAYMENT_CARD=…</code>\n<code>PAYMENT_HOLDER=…</code>\n<code>PAYMENT_AMOUNT=…</code>\nSoʻng botni qayta ishga tushiring.",
         "premium_expire_soon": "⏳ ⭐ Pro paket {hours} soatdan keyin tugaydi.\n\nUzaytirish uchun menyudagi ⭐ Premium tugmasini bosing.",
@@ -193,7 +194,7 @@ LANGS = {
         "praise_hi": "Отличный результат! 🚀",
         "praise_mid": "Хорошо, практикуйтесь ещё 💪",
         "praise_lo": "Попробуйте ещё раз, всё получится! 📚",
-        "premium_msg": "⭐ PRO ПАКЕТ\n\nВ бесплатном режиме — {n} AI-документов в день. Pro пакет даёт:\n• 📄 {w} Word-документов\n• 🎤 {s} слайда\n• 📊 Анализ тестов\n\n💳 Оплата картой: нажмите «Купить» → отправьте чек → админ подтвердит.",
+        "premium_msg": "⭐ PRO ПАКЕТ\n\nВ бесплатном режиме — {n} AI-документов в день. Pro пакет даёт:\n• 📄 {w} Word-документов\n• 🎤 {s} слайдов\n• 🧩 {q} раз Quiz\n\n💳 Оплата картой: нажмите «Купить» → отправьте чек → админ подтвердит.",
         "about_text": "👥 О НАС\n\n🎓 TalabaBot — AI помощник студентов:\n рефераты, презентации, таблицы, тесты, перевод и другое.\n\nВопрос или предложение — нажмите \"✍️ Написать\", администратор ответит.",
         "ask_murojaat": "📮 Напишите ваше обращение. Администратор ответит.",
         "murojaat_sent": "✅ Обращение отправлено администратору. Ответ придёт сюда!",
@@ -213,15 +214,16 @@ LANGS = {
         "limit_msg": "📄 Дневной бесплатный лимит ({n} AI-документов в день) исчерпан.\n\nБесплатно обновится завтра или оформите ⭐ Premium — без лимитов.",
         "queue": "⏳ Обрабатываются другие запросы.\nВаше место в очереди: {pos}\nПодождите немного...",
         "premium_buy_btn": "Купить",
-        "pay_manual": "💳 <b>Pro пакет</b> — {days} дн.\n\n• 📄 {w} Word-документов\n• 🎤 {s} слайда\n• 📊 Анализ тестов\n\n💵 Сумма: <b>15 000 сум</b>\n🏦 Карта: <code>{card}</code>\n👤 Владелец: {holder}\n\nПереведите оплату и <b>пришлите чек (скриншот)</b> сюда.\nАдмин проверит и активирует Pro.",
+        "pay_manual": "💳 <b>Pro пакет</b>\n\n• 📄 {w} Word-документов\n• 🎤 {s} слайдов\n• 🧩 {q} раз Quiz\n\n💵 Сумма: <b>15 000 сум</b>\n🏦 Карта: <code>{card}</code>\n👤 Владелец: {holder}\n\nПереведите оплату и <b>пришлите чек (скриншот)</b> сюда.\nАдмин проверит и активирует Pro.",
         "pay_proof_sent": "✅ Чек получен!\n\nОжидается проверка админом (обычно быстро). После подтверждения придёт сообщение.",
         "pay_rejected": "❌ Оплата не подтверждена.\n\nПри вопросах — обратитесь к админу.",
         "pay_ok_admin": "✅ Подтверждено",
         "pay_no_admin": "❌ Отклонено",
-        "pro_activated": "🎉 Pro пакет на {days} дн. активирован!\n\n• 📄 {w} Word-документов\n• 🎤 {s} слайда\n• 📊 Анализ тестов\n\nУдачи!",
+        "pro_activated": "🎉 Pro пакет активирован!\n\n• 📄 {w} Word-документов\n• 🎤 {s} слайдов\n• 🧩 {q} раз Quiz\n\nЛимиты начислены. Удачи!",
         "pro_limit_msg": "⛔ Лимит {what} исчерпан.\n\nДля нового пакета нажмите ⭐ Premium.",
         "unit_word": "Word-документов",
         "unit_slide": "слайдов",
+        "unit_quiz": "Quiz",
         "pay_not_configured": "💳 Оплата ещё не настроена.\n\nСкоро заработает.",
         "pay_not_configured_kb": "💳 Оплата не настроена.\n\nДобавьте карту в `.env`:\n<code>PAYMENT_CARD=…</code>\n<code>PAYMENT_HOLDER=…</code>\n<code>PAYMENT_AMOUNT=…</code>\nЗатем перезапустите бота.",
         "premium_expire_soon": "⏳ ⭐ Pro пакет закончится через {hours} ч.\n\nЧтобы продлить — нажмите ⭐ Premium в меню.",
@@ -336,7 +338,7 @@ LANGS = {
         "praise_hi": "Great result! 🚀",
         "praise_mid": "Good, keep practicing 💪",
         "praise_lo": "Try again, you'll succeed! 📚",
-        "premium_msg": "⭐ PRO PACKAGE\n\nFree plan: {n} AI documents per day. Pro package gives:\n• 📄 {w} Word documents\n• 🎤 {s} slides\n• 📊 Quiz analysis\n\n💳 Pay by card: press “Buy” → send the receipt → admin confirms.",
+        "premium_msg": "⭐ PRO PACKAGE\n\nFree plan: {n} AI documents per day. Pro package gives:\n• 📄 {w} Word documents\n• 🎤 {s} slides\n• 🧩 {q} times Quiz\n\n💳 Pay by card: press “Buy” → send the receipt → admin confirms.",
         "about_text": "👥 ABOUT US\n\n🎓 TalabaBot — AI assistant for students:\n essays, presentations, tables, tests, translation and more.\n\nQuestions or suggestions — press \"✍️ Contact\", the admin will reply.",
         "ask_murojaat": "📮 Write your message. The administrator will reply.",
         "murojaat_sent": "✅ Your message was sent to the administrator. You'll see the reply here!",
@@ -356,15 +358,16 @@ LANGS = {
         "limit_msg": "📄 Daily free limit ({n} AI documents per day) reached.\n\nIt resets tomorrow or get ⭐ Premium — unlimited docs.",
         "queue": "⏳ Other requests are being processed.\nYour queue position: {pos}\nPlease wait...",
         "premium_buy_btn": "Buy",
-        "pay_manual": "💳 <b>Pro package</b> — {days} days\n\n• 📄 {w} Word documents\n• 🎤 {s} slides\n• 📊 Quiz analysis\n\n💵 Amount: <b>15 000 so'm</b>\n🏦 Card: <code>{card}</code>\n👤 Holder: {holder}\n\nSend the payment and <b>upload the receipt (screenshot)</b> here.\nThe admin will verify and activate the Pro package.",
+        "pay_manual": "💳 <b>Pro package</b>\n\n• 📄 {w} Word documents\n• 🎤 {s} slides\n• 🧩 {q} times Quiz\n\n💵 Amount: <b>15 000 so'm</b>\n🏦 Card: <code>{card}</code>\n👤 Holder: {holder}\n\nSend the payment and <b>upload the receipt (screenshot)</b> here.\nThe admin will verify and activate the Pro package.",
         "pay_proof_sent": "✅ Receipt received!\n\nWaiting for admin verification (usually quick). You'll be notified once approved.",
         "pay_rejected": "❌ Payment not confirmed.\n\nContact the admin if you have questions.",
         "pay_ok_admin": "✅ Approved",
         "pay_no_admin": "❌ Rejected",
-        "pro_activated": "🎉 Pro package activated for {days} days!\n\n• 📄 {w} Word documents\n• 🎤 {s} slides\n• 📊 Quiz analysis\n\nGood luck!",
+        "pro_activated": "🎉 Pro package activated!\n\n• 📄 {w} Word documents\n• 🎤 {s} slides\n• 🧩 {q} times Quiz\n\nLimits granted. Good luck!",
         "pro_limit_msg": "⛔ {what} limit reached.\n\nFor a new package press ⭐ Premium.",
         "unit_word": "Word document",
         "unit_slide": "Slide",
+        "unit_quiz": "Quiz",
         "pay_not_configured": "💳 Payment is not configured yet.\n\nIt will be available soon.",
         "pay_not_configured_kb": "💳 Payment is not configured.\n\nAdd the card to `.env`:\n<code>PAYMENT_CARD=…</code>\n<code>PAYMENT_HOLDER=…</code>\n<code>PAYMENT_AMOUNT=…</code>\nThen restart the bot.",
         "premium_expire_soon": "⏳ Your ⭐ Pro package expires in {hours} h.\n\nTo renew, press ⭐ Premium in the menu.",
@@ -439,5 +442,16 @@ def t(lang: str, key: str, **kw) -> str:
     if not kw:
         return text
     from html import escape
+    import string
     kw = {k: escape(str(v)) for k, v in kw.items()}
-    return text.format(**kw)
+    kw.setdefault("w", "5")
+    kw.setdefault("s", "5")
+    kw.setdefault("q", "5")
+    kw.setdefault("days", "")
+    try:
+        return text.format(**kw)
+    except KeyError:
+        class SafeDict(dict):
+            def __missing__(self, k):
+                return ""
+        return string.Formatter().vformat(text, (), SafeDict(kw))

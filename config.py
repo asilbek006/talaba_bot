@@ -21,6 +21,7 @@ GEMINI_MAX_CONCURRENT = max(1, int(os.getenv("GEMINI_MAX_CONCURRENT", "2").strip
 PREMIUM_DAYS = max(1, int(os.getenv("PREMIUM_DAYS", "30").strip() or "30"))
 PRO_WORD = max(0, int(os.getenv("PRO_WORD", "5").strip() or "5"))
 PRO_SLIDE = max(0, int(os.getenv("PRO_SLIDE", "5").strip() or "5"))
+PRO_QUIZ = max(0, int(os.getenv("PRO_QUIZ", "5").strip() or "5"))
 
 # Qo'lda to'lov uchun karta (faqat .env da — GitHub/gitga tushmaydi!)
 PAYMENT_CARD = os.getenv("PAYMENT_CARD", "").strip()

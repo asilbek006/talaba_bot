@@ -115,16 +115,21 @@ _pay_kb = lambda lang: InlineKeyboardMarkup(inline_keyboard=[
 
 async def quota_ok(uid: int, kind: str, target: Message, state: FSMContext,
                    bot: Bot | None = None) -> bool:
-    """kind: 'word' | 'slide'. Pro paket kvotasi yoki bepul davolimni tekshiradi."""
+    """kind: 'word' | 'slide' | 'quiz'. Pro paket kvotasi yoki bepul davolimni tekshiradi."""
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
-    pro, word_left, slide_left = await db.package_status(uid)
+    pro, word_left, slide_left, quiz_left = await db.package_status(uid)
     if pro:
-        left = word_left if kind == "word" else slide_left
+        if kind == "word":
+            left = word_left
+        elif kind == "slide":
+            left = slide_left
+        else:
+            left = quiz_left
         if left > 0:
             return True
         if bot:
             await notify_admin(bot, f"⛔ Pro paket limiti tugadi\n👤 {await user_name(uid)} ({uid})\n{kind}: 0")
-        what = t(lang, "unit_word" if kind == "word" else "unit_slide")
+        what = t(lang, f"unit_{kind}")
         await target.answer(t(lang, "pro_limit_msg", what=what), reply_markup=_pay_kb(lang))
         return False
     _, used = await db.daily_status(uid)
@@ -164,6 +169,7 @@ class St(StatesGroup):
     ttranslate = State()
     murojaat = State()
     pay_photo = State()
+    admin_reply = State()
 
 
 MODE_NAMES = {"ref": "Referat", "ppt": "Prezentatsiya", "xls": "Jadval", "test": "Test"}
@@ -436,11 +442,12 @@ async def cmd_grant(message: Message, bot: Bot):
     if not u:
         await message.answer(t(DEFAULT_LANG, "grant_nouser", uid=uid))
         return
-    await db.grant_package(uid, days, config.PRO_WORD, config.PRO_SLIDE)
+    await db.grant_package(uid, days, config.PRO_WORD, config.PRO_SLIDE, config.PRO_QUIZ)
     await message.answer(t(DEFAULT_LANG, "granted", uid=uid, days=days))
     try:
         ulang = u.get("lang", DEFAULT_LANG)
-        await bot.send_message(uid, t(ulang, "premium_granted", days=days))
+        await bot.send_message(uid, t(ulang, "pro_activated",
+                                      w=config.PRO_WORD, s=config.PRO_SLIDE, q=config.PRO_QUIZ))
     except Exception as e:
         log.debug("Premium xabari yuborilmadi (%s): %s", uid, e)
 
@@ -464,6 +471,95 @@ async def cmd_broadcast(message: Message, bot: Bot):
             log.debug("Tarqatish (id=%s) xato: %s", u.get("id"), e)
         await asyncio.sleep(0.05)
     await message.answer(t(DEFAULT_LANG, "broadcast_done", ok=ok, fail=fail))
+
+
+# ---------- Admin Murojaatga Javob Berish ----------
+
+@router.callback_query(F.data.startswith("adm_rep:"))
+async def cb_admin_reply_click(call: CallbackQuery, state: FSMContext):
+    if call.from_user.id not in await db.admin_ids():
+        await call.answer("Admin emassiz", show_alert=True)
+        return
+    uid = int(call.data.split(":")[1])
+    await state.set_state(St.admin_reply)
+    await state.update_data(reply_to_uid=uid)
+    await call.message.reply(
+        f"✍️ Foydalanuvchiga (ID: <code>{uid}</code>) javobingizni yozing:\n"
+        f"<i>(Bekor qilish uchun /cancel)</i>",
+    )
+    await call.answer()
+
+
+@router.message(St.admin_reply, F.text)
+async def on_admin_reply_text(message: Message, state: FSMContext, bot: Bot):
+    if message.from_user.id not in await db.admin_ids():
+        return
+    if message.text == "/cancel":
+        await state.set_state(None)
+        await message.reply("❌ Javob bekor qilindi.")
+        return
+    data = await state.get_data()
+    uid = data.get("reply_to_uid")
+    if not uid:
+        await state.set_state(None)
+        await message.reply("Foydalanuvchi topilmadi.")
+        return
+    u = await db.get_user(uid)
+    ulang = (u or {}).get("lang", DEFAULT_LANG)
+    try:
+        await bot.send_message(uid, t(ulang, "admin_reply", text=message.text))
+        await message.reply(t(DEFAULT_LANG, "reply_sent"))
+    except Exception as e:
+        await message.reply(f"❌ Xatolik yuz berdi: {e}")
+    finally:
+        await state.set_state(None)
+
+
+@router.message(F.reply_to_message, F.text)
+async def on_reply_to_message(message: Message, state: FSMContext, bot: Bot):
+    if message.from_user.id not in await db.admin_ids():
+        return
+    rtext = message.reply_to_message.text or message.reply_to_message.caption or ""
+    m = re.search(r"ID[: ]+(\d+)", rtext)
+    if not m:
+        rm = message.reply_to_message.reply_markup
+        if rm:
+            for row in rm.inline_keyboard:
+                for b in row:
+                    if b.callback_data and b.callback_data.startswith("adm_rep:"):
+                        m = re.search(r"\d+", b.callback_data)
+                        break
+    if m:
+        uid = int(m.group(1))
+        u = await db.get_user(uid)
+        ulang = (u or {}).get("lang", DEFAULT_LANG)
+        try:
+            await bot.send_message(uid, t(ulang, "admin_reply", text=message.text))
+            await message.reply(t(DEFAULT_LANG, "reply_sent"))
+            await state.set_state(None)
+        except Exception as e:
+            await message.reply(f"❌ Xatolik yuz berdi: {e}")
+
+
+@router.message(Command("reply", "javob"))
+async def cmd_reply(message: Message, state: FSMContext, bot: Bot):
+    if message.from_user.id not in await db.admin_ids():
+        return
+    parts = message.text.split(maxsplit=2)
+    if len(parts) < 3 or not parts[1].isdigit():
+        await message.reply("Foydalanish: <code>/reply &lt;user_id&gt; &lt;javob matni&gt;</code>\nMasalan: <code>/reply 7266932118 Salom!</code>")
+        return
+    uid = int(parts[1])
+    text = parts[2]
+    u = await db.get_user(uid)
+    ulang = (u or {}).get("lang", DEFAULT_LANG)
+    try:
+        await bot.send_message(uid, t(ulang, "admin_reply", text=text))
+        await message.reply(t(DEFAULT_LANG, "reply_sent"))
+        await state.set_state(None)
+    except Exception as e:
+        await message.reply(f"❌ Xatolik yuz berdi: {e}")
+
 
 
 @router.callback_query(F.data.startswith("l:"))
@@ -536,7 +632,7 @@ async def cb_mode(call: CallbackQuery, state: FSMContext):
         return
     if mode == "premium":
         await safe_edit(call.message, t(lang, "premium_msg",
-                                        n=config.DAILY_LIMIT, w=config.PRO_WORD, s=config.PRO_SLIDE),
+                                        n=config.DAILY_LIMIT, w=config.PRO_WORD, s=config.PRO_SLIDE, q=config.PRO_QUIZ),
                         kb_premium(lang))
         await call.answer()
         return
@@ -564,8 +660,8 @@ async def cb_premium_buy(call: CallbackQuery, state: FSMContext):
     await state.set_state(St.pay_photo)
     await safe_edit(call.message, t(
         lang, "pay_manual", card=info["card"], holder=info["holder"],
-        amount=info["amount"], days=config.PREMIUM_DAYS,
-        w=config.PRO_WORD, s=config.PRO_SLIDE), kb_back(lang))
+        amount=info["amount"],
+        w=config.PRO_WORD, s=config.PRO_SLIDE, q=config.PRO_QUIZ), kb_back(lang))
     await call.answer()
 
 
@@ -623,9 +719,9 @@ async def _pay_decision(call: CallbackQuery, bot: Bot, ok: bool):
     u = await db.get_user(uid)
     ulang = (u or {}).get("lang", DEFAULT_LANG)
     if ok:
-        await db.grant_package(uid, config.PREMIUM_DAYS, config.PRO_WORD, config.PRO_SLIDE)
-        await bot.send_message(uid, t(ulang, "pro_activated", days=config.PREMIUM_DAYS,
-                                      w=config.PRO_WORD, s=config.PRO_SLIDE))
+        await db.grant_package(uid, config.PREMIUM_DAYS, config.PRO_WORD, config.PRO_SLIDE, config.PRO_QUIZ)
+        await bot.send_message(uid, t(ulang, "pro_activated",
+                                      w=config.PRO_WORD, s=config.PRO_SLIDE, q=config.PRO_QUIZ))
         await call.answer(t(DEFAULT_LANG, "pay_ok_admin"), show_alert=True)
         await notify_admin(bot, f"✅ Pro tasdiqlandi: {await user_name(uid)} ({uid})")
     else:
@@ -682,7 +778,7 @@ async def generate(target: Message, state: FSMContext, uid: int, bot: Bot):
 async def _generate(target: Message, state: FSMContext, uid: int, bot: Bot):
     data = await ctx(state, uid)
     lang, mode, topic, n = data["lang"], data["mode"], data["topic"], data["count"]
-    kind = "slide" if mode == "ppt" else "word"
+    kind = "slide" if mode == "ppt" else ("quiz" if mode == "test" else "word")
     if mode == "xls":
         kind = "word"
     if not await quota_ok(uid, kind, target, state, bot):
@@ -792,7 +888,9 @@ async def finish_quiz(msg, state: FSMContext):
         log.debug("Quiz natijasini ko'rsatishda xatolik: %s", e)
     uid = getattr(msg.from_user, "id", None)
     if uid:
-        pro, _, _ = await db.package_status(uid)
+        await consume_quota(uid, "quiz")
+        await db.bump_docs(uid)
+        pro = (await db.package_status(uid))[0]
         if pro:
             try:
                 await msg.answer(quiz_analysis_text(quiz, lang), reply_markup=kb_back(lang))
@@ -841,6 +939,8 @@ async def quiz_timeout_task(seconds, msg, state: FSMContext):
 
 @router.message(St.quiz_file, F.document)
 async def on_quiz_file(message: Message, state: FSMContext, bot: Bot):
+    if not await quota_ok(message.from_user.id, "quiz", message, state, bot):
+        return
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
     doc = message.document
     if not (doc.file_name or "").lower().endswith(".docx"):
@@ -1479,10 +1579,20 @@ async def on_murojaat(message: Message, state: FSMContext, bot: Bot):
         return
     uname = await user_name(message.from_user.id)
     u = f"@{message.from_user.username}" if message.from_user.username else "username yoʻq"
-    await notify_admin(
-        bot,
-        f"💬 <b>YANGI MUROJAAT / SUPPORT</b>\n👤 <b>{uname}</b> ({u})\n🆔 ID: <code>{message.from_user.id}</code>\n🌐 Til: {lang}"
-        f"\n\n❓ <b>Savol:</b>\n{text}\n\n<i>— Javob berish uchun ushbu xabarga Reply qiling —</i>")
+    uid = message.from_user.id
+    reply_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✍️ Javob yozish", callback_data=f"adm_rep:{uid}")]
+    ])
+    for aid in await db.admin_ids():
+        try:
+            await bot.send_message(
+                aid,
+                f"💬 <b>YANGI MUROJAAT / SUPPORT</b>\n👤 <b>{uname}</b> ({u})\n🆔 ID: <code>{uid}</code>\n🌐 Til: {lang}"
+                f"\n\n❓ <b>Savol:</b>\n{text}\n\n<i>— Javob berish uchun quyidagi tugmani bosing yoki ushbu xabarga Reply qiling —</i>",
+                reply_markup=reply_kb,
+            )
+        except Exception as e:
+            log.warning("Admin (ID %s)ga murojaat bormadi: %s", aid, e)
     await state.set_state(None)
     await message.answer(t(lang, "murojaat_sent"), reply_markup=kb_menu(lang))
 
