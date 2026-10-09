@@ -743,9 +743,8 @@ async def on_name(message: Message, state: FSMContext, bot: Bot):
     lang = (await state.get_data()).get("lang", DEFAULT_LANG)
     name = message.text.strip()
     ok, reason = mod.check_content(name)
-    if not ok:
-        msg_key = "warn_haqorat" if reason == "haqorat" else "no_personal_info"
-        await message.answer(t(lang, msg_key))
+    if badwords.has_badword(name):
+        await message.answer(t(lang, "warn_haqorat"))
         return
     if not (2 <= len(name) <= 50):
         await message.answer(t(lang, "bad_name"))
