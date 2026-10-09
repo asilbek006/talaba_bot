@@ -1,8 +1,14 @@
 import re
+from pathlib import Path
+
 from docx import Document
+
+import config
+from services.validation import validate_docx
 
 
 def extract_docx(path):
+    validate_docx(Path(path))
     doc = Document(path)
     lines = []
     for p in doc.paragraphs:
@@ -13,6 +19,8 @@ def extract_docx(path):
         for row in table.rows:
             cells = [c.text.strip() for c in row.cells]
             lines.append(" | ".join(c for c in cells if c))
+    if sum(map(len, lines)) > config.MAX_TEXT_CHARS:
+        raise ValueError("Word matni juda katta")
     return lines
 
 
@@ -21,8 +29,8 @@ Q_RE = re.compile(r"^\s*(savol|question|вопрос|вопрос)\s*[:.\-)]*\s*
 NUM_RE = re.compile(r"^\s*\d+\s*[.)]\s*")
 OPT_RE = re.compile(r"^\s*[A-Fa-f]\s*[).:]\s*")
 ANS_RE = re.compile(
-    r"(?:javob|answer|ответ|to'?\.?g'?ri|togri)\s*[:.\-)]?\s*\**\s*([a-fA-F])(?=\s*[)\s.]|$)",
-    re.I)
+    r"(?:javob|answer|ответ|to'?\.?g'?ri|togri)\s*[:.\-)]?\s*\**\s*([a-fA-F])(?=\s*[)\s.]|$)", re.I
+)
 
 
 def parse_questions(lines) -> list[dict]:
@@ -34,7 +42,8 @@ def parse_questions(lines) -> list[dict]:
             continue
         ans_match = ANS_RE.search(s)
         if ans_match:
-            cur_q["answer"] = ANSWER_MAP.get(ans_match.group(1).upper())
+            if cur_q:
+                cur_q["answer"] = ANSWER_MAP.get(ans_match.group(1).upper())
             continue
         opt = OPT_RE.match(s)
         if cur_q and opt:
@@ -49,7 +58,14 @@ def parse_questions(lines) -> list[dict]:
             cur_q["q"] += " " + s
     if cur_q and cur_q["q"] and cur_q["options"]:
         qs.append(cur_q)
-    return [q for q in qs if len(q["options"]) >= 2]
+    return [
+        q
+        for q in qs
+        if 2 <= len(q["options"]) <= 8
+        and type(q["answer"]) is int
+        and 0 <= q["answer"] < len(q["options"])
+        and len(q["q"]) <= 2500
+    ][:500]
 
 
 def letters_for(n):

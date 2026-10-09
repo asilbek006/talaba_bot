@@ -17,9 +17,14 @@ def test_card_never_embedded_in_code():
     (0000.../1111... ko'rinishidagi dummy misollar ruxsat etilgan.)"""
     import pathlib
     import re
+
     root = pathlib.Path(__file__).resolve().parent.parent
-    for f in (root / "bot.py", root / "config.py",
-              root / "services" / "payments.py", root / "README.md"):
+    for f in (
+        root / "bot.py",
+        root / "config.py",
+        root / "services" / "payments.py",
+        root / "README.md",
+    ):
         for m in re.finditer(r"\b\d{16}\b", f.read_text()):
             n = m.group(0)
             if n == n[0] * 16:
@@ -29,6 +34,7 @@ def test_card_never_embedded_in_code():
 
 def test_env_ignored_in_git():
     import pathlib
+
     root = pathlib.Path(__file__).resolve().parent.parent
     gi = (root / ".gitignore").read_text()
     assert ".env" in gi, ".env .gitignore'da yo'q — sir tashqariga chiqishi mumkin!"
@@ -44,11 +50,15 @@ class _FakeCall:
     def __init__(self, data):
         self.from_user = type("U", (), {"id": 1})
         self.data = data
-        self.message = type("M", (), {
-            "edit_text": _async_noop,
-            "edit_caption": _async_noop,
-            "caption": "",
-        })
+        self.message = type(
+            "M",
+            (),
+            {
+                "edit_text": _async_noop,
+                "edit_caption": _async_noop,
+                "caption": "",
+            },
+        )
         self.answered = False
 
     async def answer(self, *a, **k):
@@ -74,7 +84,9 @@ async def _async_noop(*a, **k):
 def test_cb_premium_buy_renders_when_ready(monkeypatch):
     """pay_manual t() chaqiruvida barcha placeholder (w/s) berilishi kerak."""
     import asyncio
+
     import bot
+
     monkeypatch.setattr(bot.payments, "is_ready", lambda: True)
     call, state = _FakeCall("premium_buy"), _FakeState()
     asyncio.run(bot.cb_premium_buy(call, state))
@@ -84,7 +96,9 @@ def test_cb_premium_buy_renders_when_ready(monkeypatch):
 
 def test_cb_premium_buy_graceful_when_not_configured(monkeypatch):
     import asyncio
+
     import bot
+
     monkeypatch.setattr(bot.payments, "is_ready", lambda: False)
     monkeypatch.setattr(bot.db, "admin_ids", _async_admin_ids)
     call, state = _FakeCall("premium_buy"), _FakeState()
@@ -98,16 +112,20 @@ async def _async_admin_ids():
 
 def test_pay_decision_approve_renders_pro_activated(monkeypatch):
     import asyncio
+
     import bot
 
     async def fake_admin_ids():
         return {1}
+
     sent = []
 
     async def fake_send(uid, text, *a, **k):
         sent.append(text)
+
     async def fake_get_user(uid):
         return {"lang": "uz"}
+
     monkeypatch.setattr(bot.db, "admin_ids", fake_admin_ids)
     monkeypatch.setattr(bot.db, "get_user", fake_get_user)
     monkeypatch.setattr(bot.db, "grant_package", _async_noop)
@@ -115,6 +133,13 @@ def test_pay_decision_approve_renders_pro_activated(monkeypatch):
     monkeypatch.setattr(bot, "user_name", _async_noop)
     fake_bot = type("B", (), {})
     fake_bot.send_message = fake_send
-    call = _FakeCall("pay:ok:777")
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr(
+        bot.db,
+        "decide_payment",
+        AsyncMock(return_value={"id": 42, "user_id": 777, "days": 30, "word": 5, "slide": 5}),
+    )
+    call = _FakeCall("pay:ok:v2:42")
     asyncio.run(bot._pay_decision(call, fake_bot, ok=True))
     assert any("Pro" in s for s in sent)  # pro_activated qaytarildi, KeyError yo'q

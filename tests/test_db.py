@@ -1,6 +1,8 @@
 import asyncio
 import time
+import uuid
 
+import asyncpg
 import pytest
 
 import config
@@ -19,12 +21,35 @@ def pg():
     if not config.DATABASE_URL:
         pytest.skip("DATABASE_URL .env'da yo'q")
     _loop = asyncio.new_event_loop()
+    schema = "test_" + uuid.uuid4().hex
+
+    async def prepare():
+        connection = await asyncpg.connect(config.DATABASE_URL)
+        try:
+            await connection.execute(f"CREATE SCHEMA {schema}")
+        finally:
+            await connection.close()
+        await db.init(schema=schema)
+
     try:
-        run(db.init())
+        run(prepare())
     except Exception as e:
-        pytest.skip(f"PostgreSQL mavjud emas: {e}")
-    yield db.POOL
-    run(db.POOL.close())
+        _loop.close()
+        pytest.fail(f"Test PostgreSQL unavailable: {e}")
+    try:
+        yield db.POOL
+    finally:
+        run(db.POOL.close())
+
+        async def cleanup_schema():
+            connection = await asyncpg.connect(config.DATABASE_URL)
+            try:
+                await connection.execute(f"DROP SCHEMA {schema} CASCADE")
+            finally:
+                await connection.close()
+
+        run(cleanup_schema())
+        _loop.close()
 
 
 def test_upsert_and_get_user(pg):
@@ -106,10 +131,10 @@ def test_package_quota(pg):
     run(db.consume_package(uid, "slide"))
     _, _, sl2 = run(db.package_status(uid))
     assert sl2 == 1
-    # takror xarid kamaytirmaydi (GREATEST)
+    # A renewal adds paid credits to the unexpired balance.
     run(db.grant_package(uid, 5, 1, 1))
     _, wl3, sl3 = run(db.package_status(uid))
-    assert wl3 == 1 and sl3 == 1
+    assert wl3 == 2 and sl3 == 2
     run(cleanup_users([uid]))
 
 
@@ -131,10 +156,8 @@ def test_expiring_and_expired(pg):
     done_uid = 9_000_000_061 + now % 1000
     run(db.upsert_user(soon_uid, "E", "", "uz"))
     run(db.upsert_user(done_uid, "D2", "", "ru"))
-    run(db.POOL.execute(
-        "UPDATE users SET premium_until=$1 WHERE id=$2", now + 5 * 3600, soon_uid))
-    run(db.POOL.execute(
-        "UPDATE users SET premium_until=$1 WHERE id=$2", now - 3600, done_uid))
+    run(db.POOL.execute("UPDATE users SET premium_until=$1 WHERE id=$2", now + 5 * 3600, soon_uid))
+    run(db.POOL.execute("UPDATE users SET premium_until=$1 WHERE id=$2", now - 3600, done_uid))
     soon = run(db.expiring_premiums(86400))
     assert any(u["id"] == soon_uid for u in soon)
     expired = run(db.expired_premiums())
@@ -146,3 +169,247 @@ async def cleanup_users(ids, files=False):
     await db.POOL.execute("DELETE FROM users WHERE id = ANY($1::bigint[])", ids)
     if files:
         await db.POOL.execute("DELETE FROM user_files WHERE path LIKE '/tmp/fake%'")
+
+
+def test_payment_confirmation_is_atomic(pg):
+    async def scenario():
+        uid = 9_100_000_001
+        await db.upsert_user(uid, "Paid", "", "uz")
+        payment = await db.create_payment(uid, "proof", "unique-proof", "photo")
+        same = await db.create_payment(uid, "new-file-id", "unique-proof", "photo")
+        assert same["id"] == payment["id"]
+        before = int(time.time())
+        outcomes = await asyncio.gather(
+            *(db.decide_payment(payment["id"], admin, True) for admin in range(10))
+        )
+        assert sum(result is not None for result in outcomes) == 1
+        user = await db.get_user(uid)
+        assert (
+            before + config.PREMIUM_DAYS * 86400
+            <= user["premium_until"]
+            <= int(time.time()) + config.PREMIUM_DAYS * 86400
+        )
+        assert user["word_left"] == config.PRO_WORD
+        assert await db.decide_payment(payment["id"], 99, False) is None
+        assert await db.pending_payments() == []
+
+    run(scenario())
+
+
+def test_payment_snapshot_survives_price_change(pg, monkeypatch):
+    async def scenario():
+        uid = 9_100_000_002
+        await db.upsert_user(uid, "Snapshot", "", "uz")
+        payment = await db.create_payment(uid, "proof2", "unique-proof2", "photo")
+        old_word = payment["word"]
+        monkeypatch.setattr(config, "PRO_WORD", old_word + 100)
+        await db.decide_payment(payment["id"], 1, True)
+        assert (await db.get_user(uid))["word_left"] == old_word
+
+    run(scenario())
+
+
+def test_quota_parallel_reservation_and_refund(pg):
+    async def scenario():
+        uid = 9_100_000_003
+        await db.upsert_user(uid, "Parallel", "", "uz")
+        jobs = await asyncio.gather(
+            *(db.reserve_job(uid, "word", {"mode": "ref"}) for _ in range(12))
+        )
+        accepted = [job for job in jobs if job and "id" in job]
+        assert len(accepted) == 1
+        assert (await db.get_user(uid))["daily_used"] == 1
+        outcomes = await asyncio.gather(*(db.refund_job(accepted[0]["id"]) for _ in range(10)))
+        assert outcomes.count(True) == 1
+        assert (await db.get_user(uid))["daily_used"] == 0
+
+    run(scenario())
+
+
+def test_completed_job_is_not_refunded_and_checks_owner(pg):
+    async def scenario():
+        uid = 9_100_000_004
+        await db.upsert_user(uid, "Complete", "", "uz")
+        job = await db.reserve_job(uid, "word", {"mode": "ref", "topic": "Test", "count": 3})
+        fid = await db.complete_job(job["id"], uid, "ref", "Title", "/tmp/audit.docx", 12)
+        assert await db.refund_job(job["id"]) is False
+        assert (await db.get_user(uid))["daily_used"] == 1
+        assert (await db.get_user(uid))["docs"] == 1
+        assert await db.get_file(fid, uid + 100) is None
+        assert await db.get_job(job["id"], uid + 100) is None
+        assert (await db.get_job(job["id"], uid))["payload"]["topic"] == "Test"
+
+    run(scenario())
+
+
+def test_pro_uses_free_quota_after_package_exhaustion(pg):
+    async def scenario():
+        uid = 9_100_000_005
+        await db.upsert_user(uid, "Fallback", "", "uz")
+        await db.grant_package(uid, 30, 1, 0)
+        paid = await db.reserve_job(uid, "word", {})
+        assert paid["source"] == "word"
+        await db.complete_job(paid["id"], uid, "ref", "", "/tmp/fallback.docx", 1)
+        free = await db.reserve_job(uid, "word", {})
+        assert free["source"] == "free"
+        await db.refund_job(free["id"])
+        assert (await db.get_user(uid))["daily_used"] == 0
+
+    run(scenario())
+
+
+def test_quota_exhaustion_and_midnight_refund(pg):
+    async def scenario():
+        uid = 9_100_000_006
+        await db.upsert_user(uid, "Daily", "", "uz")
+        await db.POOL.execute(
+            "UPDATE users SET daily_used=$1,daily_reset=$2 WHERE id=$3",
+            config.DAILY_LIMIT,
+            db.day_start(),
+            uid,
+        )
+        assert await db.reserve_job(uid, "word", {}) is None
+        await db.POOL.execute("UPDATE users SET daily_reset=0 WHERE id=$1", uid)
+        job = await db.reserve_job(uid, "word", {})
+        assert (await db.get_user(uid))["daily_used"] == 1
+        await db.POOL.execute(
+            "UPDATE users SET daily_reset=$1,daily_used=2 WHERE id=$2", db.day_start() + 86400, uid
+        )
+        await db.refund_job(job["id"])
+        assert (await db.get_user(uid))["daily_used"] == 2
+
+    run(scenario())
+
+
+def test_restart_recovery_refunds_once(pg):
+    async def scenario():
+        uid = 9_100_000_007
+        await db.upsert_user(uid, "Restart", "", "uz")
+        await db.reserve_job(uid, "slide", {})
+        assert uid in await db.recover_interrupted_jobs()
+        assert uid not in await db.recover_interrupted_jobs()
+        assert (await db.get_user(uid))["daily_used"] == 0
+
+    run(scenario())
+
+
+def test_notifications_do_not_repeat_across_restarts(pg):
+    async def scenario():
+        uid = 9_100_000_008
+        await db.upsert_user(uid, "Notice", "", "uz")
+        period = int(time.time()) + 3600
+        await db.POOL.execute("UPDATE users SET premium_until=$1 WHERE id=$2", period, uid)
+        assert any(u["id"] == uid for u in await db.expiring_premiums(86400))
+        await db.mark_premium_notified(uid, period, True)
+        assert not any(u["id"] == uid for u in await db.expiring_premiums(86400))
+        await db.POOL.execute("UPDATE users SET premium_until=$1 WHERE id=$2", period + 1, uid)
+        assert any(u["id"] == uid for u in await db.expiring_premiums(86400))
+
+    run(scenario())
+
+
+def test_fsm_serializable_merge_and_restart(pg):
+    from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.storage.base import StorageKey
+
+    from services.fsm_pg import PostgresStorage
+
+    async def scenario():
+        key = StorageKey(bot_id=1, chat_id=999, user_id=999)
+        state = FSMContext(storage=PostgresStorage(), key=key)
+        await state.set_state("merge")
+        await state.update_data(merge_files=["/tmp/one.pdf"])
+        await asyncio.gather(state.update_data(lang="uz"), state.update_data(name="Test"))
+        restored = FSMContext(storage=PostgresStorage(), key=key)
+        assert await restored.get_state() == "merge"
+        assert await restored.get_data() == {
+            "merge_files": ["/tmp/one.pdf"],
+            "lang": "uz",
+            "name": "Test",
+        }
+
+    run(scenario())
+
+
+def test_initial_migration_keeps_docs_and_never_reduces_them(pg):
+    uid = 9_100_000_009
+    run(db.upsert_user(uid, "Legacy", "", "uz", docs=12))
+    assert run(db.get_user(uid))["docs"] == 12
+    run(db.upsert_user(uid, "Legacy", "", "uz", docs=3))
+    assert run(db.get_user(uid))["docs"] == 12
+
+
+def test_expired_files_are_hidden_and_pruned(pg):
+    async def scenario():
+        uid = 9_100_000_010
+        await db.upsert_user(uid, "Expiry", "", "uz")
+        fid = await db.add_file(uid, "ref", "", "/tmp/old.docx", 1)
+        await db.POOL.execute("UPDATE user_files SET created_at=1 WHERE id=$1", fid)
+        assert await db.get_file(fid, uid) is None
+        assert await db.list_files(uid) == []
+        assert await db.count_files(uid) == 0
+        await db.prune_expired_records()
+        assert await db.POOL.fetchval("SELECT 1 FROM user_files WHERE id=$1", fid) is None
+
+    run(scenario())
+
+
+def test_admin_secret_is_one_time_and_support_mapping_is_scoped(pg):
+    async def scenario():
+        outcomes = await asyncio.gather(
+            *(db.claim_admin_secret(uid, "test-digest") for uid in (91, 92))
+        )
+        assert outcomes.count(True) == 1
+        await db.remember_support_reply(10, 20, 30)
+        assert await db.support_recipient(10, 20) == 30
+        assert await db.support_recipient(11, 20) is None
+
+    run(scenario())
+
+
+def test_tashkent_midnight_boundary():
+    from datetime import datetime, timezone
+
+    before = datetime(2026, 10, 8, 18, 59, tzinfo=timezone.utc).timestamp()
+    after = before + 120
+    assert db.day_start(after) - db.day_start(before) == 86400
+
+
+def test_real_job_flow_refunds_failure_and_keeps_delivered_file(pg, tmp_path, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    import bot
+    from tests.test_workflows import State, message
+
+    async def scenario():
+        uid = 9_100_000_011
+        await db.upsert_user(uid, "Workflow", "", "uz")
+        monkeypatch.setattr(config, "FILES_DIR", tmp_path)
+        state = State({"lang": "uz"})
+        msg = message(uid=uid)
+
+        async def failed():
+            raise RuntimeError("Provider failed")
+
+        await bot.run_document_job(msg, state, uid, "word", "ref", "Report", failed, "done_ref")
+        assert (await db.get_user(uid))["daily_used"] == 0
+        assert (await db.get_user(uid))["docs"] == 0
+
+        async def successful():
+            path = bot.new_file(uid, "ref", ".docx")
+            path.write_bytes(b"completed document")
+            return path, 0
+
+        monkeypatch.setattr(
+            bot, "send_file", AsyncMock(side_effect=RuntimeError("Telegram delivery failed"))
+        )
+        await bot.run_document_job(msg, state, uid, "word", "ref", "Report", successful, "done_ref")
+        assert (await db.get_user(uid))["daily_used"] == 1
+        assert (await db.get_user(uid))["docs"] == 1
+        files = await db.list_files(uid)
+        assert len(files) == 1
+        assert Path(files[0]["path"]).read_bytes() == b"completed document"
+
+    from pathlib import Path
+
+    run(scenario())

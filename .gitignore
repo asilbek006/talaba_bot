@@ -20,3 +20,7 @@ admin.json
 
 # OS
 .DS_Store
+.coverage*
+htmlcov/
+.ruff_cache/
+backups/

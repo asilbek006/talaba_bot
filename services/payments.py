@@ -7,6 +7,7 @@ paket beriladi.
 Karta raqami FAQAT `.env` da (`PAYMENT_CARD`, `PAYMENT_HOLDER`, `PAYMENT_AMOUNT`).
 Hech qachon kodga, README ga yoki GitHub ga tushmaydi (`.gitignore` orqali himoyalangan).
 """
+
 import config
 
 

@@ -1,12 +1,28 @@
+import uuid
+from pathlib import Path
+
 from pypdf import PdfReader, PdfWriter
 
-from pathlib import Path
+import config
+
+
+def page_count(src: Path) -> int:
+    total = len(PdfReader(str(src)).pages)
+    if not 1 <= total <= config.MAX_PDF_PAGES:
+        raise ValueError(f"PDF 1–{config.MAX_PDF_PAGES} sahifa bo'lishi kerak")
+    return total
 
 
 def merge_pdfs(files, out: Path):
+    if not 2 <= len(files) <= 10:
+        raise ValueError("2–10 ta PDF kerak")
     writer = PdfWriter()
+    total = 0
     for f in files:
         reader = PdfReader(str(f))
+        total += len(reader.pages)
+        if total > config.MAX_PDF_PAGES:
+            raise ValueError("PDF sahifalari soni juda ko'p")
         for page in reader.pages:
             writer.add_page(page)
     with open(out, "wb") as fb:
@@ -15,6 +31,9 @@ def merge_pdfs(files, out: Path):
 
 
 def split_pdf(src: Path, ranges: list[tuple[int, int]]) -> list[Path]:
+    page_count(src)
+    if not 1 <= len(ranges) <= 20:
+        raise ValueError("1–20 ta diapazon kiriting")
     reader = PdfReader(str(src))
     total = len(reader.pages)
     outs = []
@@ -22,7 +41,7 @@ def split_pdf(src: Path, ranges: list[tuple[int, int]]) -> list[Path]:
         writer = PdfWriter()
         for page_no in range(a - 1, min(b, total)):
             writer.add_page(reader.pages[page_no])
-        p = src.parent / f"split_{idx}_{a}-{b}.pdf"
+        p = src.parent / f"split_{uuid.uuid4().hex}_{idx}_{a}-{b}.pdf"
         with open(p, "wb") as fb:
             writer.write(fb)
         outs.append(p)
@@ -30,6 +49,8 @@ def split_pdf(src: Path, ranges: list[tuple[int, int]]) -> list[Path]:
 
 
 def parse_ranges(text: str, total: int) -> list[tuple[int, int]]:
+    if total < 1 or len(text.split(",")) > 20:
+        return []
     out = []
     parts = text.replace("–", "-").split(",")
     for part in parts:

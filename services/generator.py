@@ -5,9 +5,16 @@ import time
 from google import genai
 from google.genai import types
 
-from config import GEMINI_API_KEY, GEMINI_MODEL
+import config
+from config import GEMINI_API_KEY, GEMINI_MODEL, log
 
-client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+client = (
+    genai.Client(
+        api_key=GEMINI_API_KEY, http_options=types.HttpOptions(timeout=config.GEMINI_TIMEOUT * 1000)
+    )
+    if GEMINI_API_KEY
+    else None
+)
 
 LANG_NAMES = {"uz": "oʻzbek lotin alifbosidagi", "ru": "русский", "en": "English"}
 
@@ -79,142 +86,172 @@ def _extract_json(text: str):
         start = min([i for i in (text.find("{"), text.find("[")) if i >= 0], default=-1)
         end = max(text.rfind("}"), text.rfind("]"))
         if start >= 0 and end > start:
-            return json.loads(text[start:end + 1])
+            return json.loads(text[start : end + 1])
         raise
 
 
-def _ask(prompt: str) -> dict:
+def _ask(prompt: str) -> dict | list:
     if not client:
-        raise RuntimeError("GEMINI_API_KEY sozlanmagan (.env faylini tekshiring)")
-    last = None
-    for attempt in range(5):
+        raise RuntimeError("AI xizmati sozlanmagan")
+    for attempt in range(3):
         try:
             resp = client.models.generate_content(
                 model=GEMINI_MODEL,
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.7,
+                    response_mime_type="application/json", temperature=0.4, max_output_tokens=24000
                 ),
             )
             return _extract_json(resp.text or "")
-        except Exception as e:
-            last = e
-            msg = str(e)
-            backoff = [3, 6, 12, 25][attempt] if attempt < 4 else 30
-            if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
-                if attempt < 4:
-                    time.sleep(backoff)
-                    continue
+        except Exception as exc:
+            code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+            retryable = (
+                code in (408, 429, 500, 502, 503, 504)
+                or isinstance(exc, (json.JSONDecodeError, TimeoutError, ConnectionError))
+                or "timeout" in type(exc).__name__.lower()
+            )
+            if not retryable or attempt == 2:
+                log.warning("AI request failed type=%s code=%s", type(exc).__name__, code)
                 raise RuntimeError(
-                    "AI xizmatining kunlik limiti tugadi. Keyinroq yana urinib "
-                    f"ko'ring yoki yangi GEMINI_API_KEY kiriting. (429 RESOURCE_EXHAUSTED)"
-                )
-            time.sleep(2 * (attempt + 1))
-    raise RuntimeError(str(last)[:300])
+                    "AI xizmati javob bermadi. Keyinroq qayta urinib ko'ring."
+                ) from exc
+            time.sleep(2 ** (attempt + 1))
+    raise RuntimeError("AI xizmati javob bermadi")
 
 
 def _ask_validated(prompt: str, check) -> dict | list:
-    data = _ask(prompt)
-    if check(data):
-        return data
-    hint = ("\nMuhim: oldingi javobing strukturasi noto'g'ri edi. "
-            "Faqat talab qilingan JSON shaklida, boshqa hech narsa qo'shmay qaytar.")
-    data = _ask(prompt + hint)
-    if not check(data):
-        raise RuntimeError("AI javobini tahlil qilib bo'lmadi (format xatosi)")
-    return data
+    for attempt in range(2):
+        data = _ask(
+            prompt
+            if not attempt
+            else prompt
+            + "\nOldingi javob noto'g'ri yoki to'liq emas edi. Barcha talablarni bajarib, to'liq JSON qaytar."
+        )
+        if check(data):
+            return data
+    raise RuntimeError("AI javobining shakli yoki hajmi talabga mos emas")
 
 
 def _topic_ok(topic: str, data) -> bool:
     words = [w for w in re.split(r"\W+", topic.lower()) if len(w) > 3]
     if not words:
         return True
-    blob = " ".join(
-        str(s.get("heading", "")) + " " + " ".join(str(p) for p in s.get("paragraphs", []))
-        for s in (data.get("sections", []) if isinstance(data, dict) else []))
-    blob += " " + (str(data.get("title", "")) if isinstance(data, dict) else "")
-    return any(w in blob.lower() for w in words)
+    if not isinstance(data, dict):
+        return False
+    # Inspect slide text too, not only a presentation's cover title.
+    blob = json.dumps(data, ensure_ascii=False).lower()
+    return any(w in blob for w in words)
 
 
 def _ref_ok(data) -> bool:
-    return (isinstance(data, dict) and isinstance(data.get("sections"), list)
-            and len(data["sections"]) > 0)
+    return (
+        isinstance(data, dict)
+        and isinstance(data.get("title", ""), str)
+        and isinstance(data.get("sections"), list)
+        and bool(data["sections"])
+        and all(
+            isinstance(s, dict)
+            and isinstance(s.get("heading", ""), str)
+            and isinstance(s.get("paragraphs"), list)
+            and bool(s["paragraphs"])
+            and all(isinstance(p, str) and p.strip() for p in s["paragraphs"])
+            for s in data["sections"]
+        )
+    )
 
 
 def gen_referat(lang: str, topic: str, pages: int) -> dict:
-    content_pages = max(pages - 1, 1)
-    words = content_pages * 300
-    sections = min(14, max(4, pages // 2 + 1))
-    words_per_section = max(150, words // sections)
+    words = max(pages - 1, 1) * 300
+    sections = min(14, max(3, pages // 2 + 1))
     prompt = REFERAT_PROMPT.format(
-        topic=topic, lang=LANG_NAMES.get(lang, lang),
-        words=words, sections=sections, words_per_section=words_per_section)
+        topic=topic,
+        lang=LANG_NAMES.get(lang, lang),
+        words=words,
+        sections=sections,
+        words_per_section=max(50, words // sections),
+    )
     data = _ask_validated(prompt, _ref_ok)
-    if not _topic_ok(topic, data):
-        data = _ask_validated(prompt + f'\nMuhim: oldingi javobing "{topic}" mavzusiga mos emas edi. '
-                                       'Aynan shu mavzu haqida qayta yoz, boshqa narsaga o\'tma!', _ref_ok)
-    if _word_count(data) < int(words * 0.8):
-        data = _ask_validated(prompt +
-                              f"\nMuhim: hozircha {_word_count(data)} ta so'z bor, "
-                              f"kamida {words} ta so'z bo'lishi kerak. Bo'limlarni to'ldirib, matnni uzaytir!",
-                              _ref_ok)
+    if not _topic_ok(topic, data) or not int(words * 0.8) <= _word_count(data) <= int(words * 1.3):
+        data = _ask_validated(
+            prompt + f"\nMavzu va hajmni tekshir: {words} so'z atrofida bo'lsin.", _ref_ok
+        )
+    if (
+        not _ref_ok(data)
+        or not _topic_ok(topic, data)
+        or not int(words * 0.8) <= _word_count(data) <= int(words * 1.3)
+    ):
+        raise RuntimeError("Referat hajmi yoki mavzusi talabga mos emas")
+    data["include_cover"] = pages > 1
     refs = data.get("references")
-    if refs:
-        literature = [r for r in map(str, refs) if r.strip()]
-        if literature:
-            label = {"uz": "ADABIYOTLAR", "ru": "ЛИТЕРАТУРА", "en": "REFERENCES"}.get(lang, "ADABIYOTLAR")
-            data["sections"].append({"heading": label, "paragraphs": literature})
-    data.setdefault("title", topic)
-    data.setdefault("sections", [])
+    if isinstance(refs, list) and refs and all(isinstance(r, str) for r in refs):
+        label = {"uz": "ADABIYOTLAR", "ru": "ЛИТЕРАТУРА", "en": "REFERENCES"}.get(
+            lang, "ADABIYOTLAR"
+        )
+        data["sections"].append({"heading": label, "paragraphs": [r for r in refs if r.strip()]})
     return data
 
 
 def _word_count(data: dict) -> int:
-    return sum(len(str(p).split())
-               for s in data.get("sections", []) for p in s.get("paragraphs", []))
+    return sum(
+        len(str(p).split()) for s in data.get("sections", []) for p in s.get("paragraphs", [])
+    )
 
 
 def _ppt_ok(data) -> bool:
-    return (isinstance(data, dict) and isinstance(data.get("slides"), list)
-            and len(data["slides"]) > 0)
+    return (
+        isinstance(data, dict)
+        and isinstance(data.get("title", ""), str)
+        and isinstance(data.get("slides"), list)
+        and bool(data["slides"])
+        and all(
+            isinstance(s, dict)
+            and isinstance(s.get("title"), str)
+            and s["title"].strip()
+            and isinstance(s.get("bullets", []), list)
+            and len(s.get("bullets", [])) <= 6
+            and all(isinstance(b, str) and 0 < len(b) <= 500 for b in s.get("bullets", []))
+            and isinstance(s.get("notes", ""), str)
+            for s in data["slides"]
+        )
+    )
 
 
 def gen_pptx(lang: str, topic: str, n: int) -> dict:
     prompt = PPTX_PROMPT.format(topic=topic, lang=LANG_NAMES.get(lang, lang), n=n)
     data = _ask_validated(prompt, _ppt_ok)
-    if not _topic_ok(topic, data):
-        data = _ask_validated(prompt + f'\nMuhim: oldingi javobing "{topic}" mavzusiga mos emas edi. '
-                                       'Aynan shu mavzu haqida qayta yoz!', _ppt_ok)
-    slides = data.get("slides", [])
-    if len(slides) != n:
-        data = _ask_validated(
-            PPTX_PROMPT.format(topic=topic, lang=LANG_NAMES.get(lang, lang), n=n) +
-            f"\nMuhim: oldingi javobda {len(slides)} ta slayd keldi, aynan {n} ta kerak edi.",
-            _ppt_ok)
-        slides = data.get("slides", [])
-        if len(slides) > n:
-            data["slides"] = slides[:n]
-    data.setdefault("title", topic)
-    data.setdefault("slides", [])
+    if not _topic_ok(topic, data) or len(data["slides"]) != n:
+        data = _ask_validated(prompt + f"\nAynan {n} ta slayd kerak.", _ppt_ok)
+    if not _ppt_ok(data) or len(data["slides"]) < n or not _topic_ok(topic, data):
+        raise RuntimeError("Slaydlar hajmi yoki mavzusi talabga mos emas")
+    data["slides"] = data["slides"][:n]
     return data
 
 
 def _xls_ok(data) -> bool:
-    return (isinstance(data, dict) and isinstance(data.get("headers"), list)
-            and isinstance(data.get("rows"), list))
+    return (
+        isinstance(data, dict)
+        and isinstance(data.get("headers"), list)
+        and 2 <= len(data["headers"]) <= 6
+        and all(isinstance(h, str) and h.strip() for h in data["headers"])
+        and isinstance(data.get("rows"), list)
+        and all(
+            isinstance(row, list)
+            and len(row) == len(data["headers"])
+            and all(cell is None or type(cell) in (str, int, float) for cell in row)
+            for row in data["rows"]
+        )
+    )
 
 
 def gen_xlsx(lang: str, topic: str, rows: int) -> dict:
     prompt = XLSX_PROMPT.format(topic=topic, lang=LANG_NAMES.get(lang, lang), rows=rows)
     data = _ask_validated(prompt, _xls_ok)
     if len(data.get("rows", [])) != rows:
-        data = _ask_validated(prompt +
-                              f"\nMuhim: oldingi javobda {len(data.get('rows', []))} ta qator keldi, "
-                              f"aynan {rows} ta qator kerak edi.", _xls_ok)
-    data["rows"] = data.get("rows", [])[:rows]
+        data = _ask_validated(prompt + f"\nAynan {rows} ta qator kerak.", _xls_ok)
+    if not _xls_ok(data) or len(data["rows"]) < rows:
+        raise RuntimeError("Jadval hajmi talabga mos emas")
+    data["rows"] = data["rows"][:rows]
     data.setdefault("title", topic)
-    data.setdefault("headers", [])
     return data
 
 
@@ -249,31 +286,36 @@ Boshqa hech narsa yozma."""
 
 
 def gen_test(lang: str, topic: str, n: int) -> list[dict]:
-    def ok(data) -> bool:
-        return (isinstance(data, list) and len(data) > 0
-                and all(isinstance(q, dict) and q.get("q")
-                        and isinstance(q.get("options"), list)
-                        and len(q["options"]) >= 2 for q in data))
-    data = _ask_validated(TEST_PROMPT.format(topic=topic, lang=LANG_NAMES.get(lang, lang), n=n), ok)
-    return data[:n]
+    def valid(data):
+        return (
+            isinstance(data, list)
+            and len(data) >= n
+            and all(
+                isinstance(q, dict)
+                and isinstance(q.get("q"), str)
+                and q["q"].strip()
+                and isinstance(q.get("options"), list)
+                and len(q["options"]) == 4
+                and all(isinstance(o, str) and o.strip() for o in q["options"])
+                and type(q.get("answer")) is int
+                and 0 <= q["answer"] < 4
+                for q in data
+            )
+        )
+
+    return _ask_validated(
+        TEST_PROMPT.format(topic=topic, lang=LANG_NAMES.get(lang, lang), n=n), valid
+    )[:n]
 
 
 def gen_translate(target: str, paragraphs: list[str]) -> list[str]:
-    text = "\n".join(f"{i + 1}. {p}" for i, p in enumerate(paragraphs))
-    data = _ask(TRANSLATE_PROMPT.format(target=target, text=text))
-    out = data.get("paragraphs") or []
-    if len(out) < len(paragraphs):
-        out = (out + [""] * len(paragraphs))[:len(paragraphs)]
-    return out
+    return _transform_paragraphs(
+        paragraphs, lambda text: TRANSLATE_PROMPT.format(target=target, text=text)
+    )
 
 
 def gen_rewrite(paragraphs: list[str]) -> list[str]:
-    text = "\n".join(f"{i + 1}. {p}" for i, p in enumerate(paragraphs))
-    data = _ask(REWRITE_PROMPT.format(text=text))
-    out = data.get("paragraphs") or []
-    if len(out) < len(paragraphs):
-        out = (out + [""] * len(paragraphs))[:len(paragraphs)]
-    return out
+    return _transform_paragraphs(paragraphs, lambda text: REWRITE_PROMPT.format(text=text))
 
 
 PPTX_FROM_TEXT_PROMPT = """Sen berilgan matn asosida professional prezentatsiya tayyorlaysan.
@@ -300,9 +342,48 @@ Boshqa hech narsa yozma."""
 
 
 def gen_ppt_from_text(lang: str, text: str, n: int) -> dict:
-    data = _ask_validated(PPTX_FROM_TEXT_PROMPT.format(lang=LANG_NAMES.get(lang, lang), n=n, text=text[:20000]), _ppt_ok)
-    data.setdefault("title", "")
-    data.setdefault("slides", [])
-    if len(data.get("slides", [])) > n:
-        data["slides"] = data["slides"][:n]
+    if len(text) > 40000:
+        raise ValueError("Word→PPT uchun matn juda katta (maksimum 40 000 belgi)")
+    prompt = PPTX_FROM_TEXT_PROMPT.format(lang=LANG_NAMES.get(lang, lang), n=n, text=text)
+    data = _ask_validated(prompt, lambda value: _ppt_ok(value) and len(value["slides"]) >= n)
+    data["slides"] = data["slides"][:n]
     return data
+
+
+def _transform_paragraphs(paragraphs: list[str], make_prompt) -> list[str]:
+    if (
+        not paragraphs
+        or not all(isinstance(p, str) for p in paragraphs)
+        or sum(map(len, paragraphs)) > config.MAX_TEXT_CHARS
+    ):
+        raise ValueError("Matn bo'sh yoki ruxsat etilgan hajmdan katta")
+    pieces = []
+    for index, paragraph in enumerate(paragraphs):
+        # Long individual paragraphs are chunked too; no source text is truncated.
+        for start in range(0, len(paragraph), 6000):
+            part = paragraph[start : start + 6000]
+            if part.strip():
+                pieces.append((index, part))
+    output = [[] for _ in paragraphs]
+    offset = 0
+    while offset < len(pieces):
+        batch, size = [], 0
+        while offset < len(pieces) and (not batch or size + len(pieces[offset][1]) <= 8000):
+            batch.append(pieces[offset])
+            size += len(pieces[offset][1])
+            offset += 1
+        expected = len(batch)
+
+        def valid(data, expected=expected):
+            return (
+                isinstance(data, dict)
+                and isinstance(data.get("paragraphs"), list)
+                and len(data["paragraphs"]) == expected
+                and all(isinstance(p, str) and p.strip() for p in data["paragraphs"])
+            )
+
+        text = "\n".join(f"{i + 1}. {part}" for i, (_, part) in enumerate(batch))
+        data = _ask_validated(make_prompt(text), valid)
+        for (index, _), translated in zip(batch, data["paragraphs"], strict=True):
+            output[index].append(translated.strip())
+    return [" ".join(parts) for parts in output]

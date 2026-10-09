@@ -9,6 +9,7 @@ from config import log
 
 _TIMEOUT = 15
 _WORKERS = 4
+_executor = cf.ThreadPoolExecutor(max_workers=_WORKERS, thread_name_prefix="slide-image")
 _BUDGET = 90
 _POLLINATION_GAP = 16
 _TOKEN_GAP = 5
@@ -20,9 +21,11 @@ _SAFE_MIMES = ("image/jpeg", "image/png", "image/webp", "image/gif")
 def slide_prompt(title: str, bullets: list[str], fallback: str = "") -> str:
     points = "; ".join(str(b) for b in bullets)[:240]
     theme = points or fallback or title
-    return (f"Minimal flat vector illustration for a presentation slide about '{title}'. "
-            f"Key ideas: {theme}. Clean professional editorial style, soft modern colors, "
-            f"light background, no text, no letters, no numbers, no watermark, wide 16:9 composition")
+    return (
+        f"Minimal flat vector illustration for a presentation slide about '{title}'. "
+        f"Key ideas: {theme}. Clean professional editorial style, soft modern colors, "
+        f"light background, no text, no letters, no numbers, no watermark, wide 16:9 composition"
+    )
 
 
 def _get(url: str, headers: dict | None = None) -> bytes:
@@ -53,15 +56,19 @@ def _commons_queries(title: str, hint: str) -> list[str]:
 
 
 def _commons_api(query: str) -> dict:
-    api = ("https://commons.wikimedia.org/w/api.php?action=query&generator=search"
-           f"&gsrsearch={urllib.parse.quote(query)}&gsrnamespace=6&gsrlimit=6"
-           "&prop=imageinfo&iiprop=url%7Cmime&iiurlwidth=1024&format=json")
+    api = (
+        "https://commons.wikimedia.org/w/api.php?action=query&generator=search"
+        f"&gsrsearch={urllib.parse.quote(query)}&gsrnamespace=6&gsrlimit=6"
+        "&prop=imageinfo&iiprop=url%7Cmime&iiurlwidth=1024&format=json"
+    )
     raw = _get(api, {"User-Agent": _UA})
     return json.loads(raw).get("query", {}).get("pages") or {}
 
 
-def _commons_pick(pages: dict):
+def _commons_pick(pages: dict, deadline: float | None = None):
     for page in sorted(pages.values(), key=lambda p: p.get("index", 99)):
+        if deadline is not None and time.time() >= deadline:
+            return None
         ii = (page.get("imageinfo") or [{}])[0]
         if ii.get("mime") not in _SAFE_MIMES:
             continue
@@ -74,15 +81,17 @@ def _commons_pick(pages: dict):
     return None
 
 
-def _commons_one(i: int, title: str, hint: str):
+def _commons_one(i: int, title: str, hint: str, deadline: float | None = None):
     queries = _commons_queries(title, hint)
     if not queries:
         return i, None
     for attempt in range(2):
         try:
             for query in queries:
+                if deadline is not None and time.time() >= deadline:
+                    return i, None
                 pages = _commons_api(query)
-                img = _commons_pick(pages)
+                img = _commons_pick(pages, deadline)
                 if img:
                     return i, img
             return i, None
@@ -108,12 +117,16 @@ def _pollinations_one(i: int, title: str, bullets: list[str], seed: int):
         q = urllib.parse.quote(slide_prompt(title, bullets))
         token = os.getenv("POLLINATIONS_TOKEN", "").strip()
         if token:
-            url = (f"https://gen.pollinations.ai/image/{q}"
-                   f"?width=1024&height=576&seed={seed + i}&nologo=true")
+            url = (
+                f"https://gen.pollinations.ai/image/{q}"
+                f"?width=1024&height=576&seed={seed + i}&nologo=true"
+            )
             img = _fetch(url, {"Authorization": f"Bearer {token}"})
         else:
-            url = (f"https://image.pollinations.ai/prompt/{q}"
-                   f"?width=1024&height=576&seed={seed + i}&nologo=true")
+            url = (
+                f"https://image.pollinations.ai/prompt/{q}"
+                f"?width=1024&height=576&seed={seed + i}&nologo=true"
+            )
             img = _fetch(url)
         if len(img) <= 3000:
             return i, None
@@ -136,9 +149,9 @@ def fetch_for_slides(slides: list, seed: int) -> list:
 
     try:
         head = min(max(_BUDGET // 3, 20), _BUDGET - 25)
-        ex = cf.ThreadPoolExecutor(max_workers=min(_WORKERS, n))
+        ex = _executor
         try:
-            futs = [ex.submit(_commons_one, i, titles[i], hints[i]) for i in range(n)]
+            futs = [ex.submit(_commons_one, i, titles[i], hints[i], t0 + head) for i in range(n)]
             for f in cf.as_completed(futs, timeout=head):
                 i, img = f.result()
                 if img:
@@ -146,7 +159,8 @@ def fetch_for_slides(slides: list, seed: int) -> list:
         except cf.TimeoutError:
             log.debug("Commons bosqich vaqti tugadi (%ss)", head)
         finally:
-            ex.shutdown(wait=False, cancel_futures=True)
+            for future in futs:
+                future.cancel()
         log.debug("Commons bosqichi: %s/%s", sum(1 for x in out if x), n)
 
         token = os.getenv("POLLINATIONS_TOKEN", "").strip()
@@ -155,7 +169,7 @@ def fetch_for_slides(slides: list, seed: int) -> list:
         for i in range(n):
             if out[i]:
                 continue
-            if time.time() + gap + 5 >= deadline:
+            if time.time() + max(gap, _TIMEOUT) >= deadline:
                 break
             wait = gap - (time.time() - last)
             if wait > 0:
@@ -176,7 +190,7 @@ def add_ppt_images(data: dict) -> dict:
     slides = data.get("slides", [])
     imgs = fetch_for_slides(slides, int(time.time()))
     failures = 0
-    for slide, img in zip(slides, imgs):
+    for slide, img in zip(slides, imgs, strict=True):
         if img:
             slide["image_bytes"] = img
         else:

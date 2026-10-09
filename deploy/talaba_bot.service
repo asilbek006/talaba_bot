@@ -1,7 +1,9 @@
 [Unit]
-Description=TalabaBot — Telegram AI dokument bot
+Description=TalabaBot — Telegram document assistant
 After=network-online.target postgresql.service
 Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=10
 
 [Service]
 Type=simple
@@ -9,13 +11,29 @@ User=talaba
 Group=talaba
 WorkingDirectory=/opt/talaba_bot
 EnvironmentFile=/opt/talaba_bot/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=FILES_DIR=/var/lib/talaba_bot
+Environment=LOG_DIR=/var/log/talaba_bot
+StateDirectory=talaba_bot
+StateDirectoryMode=0700
+LogsDirectory=talaba_bot
+LogsDirectoryMode=0700
 ExecStart=/opt/talaba_bot/.venv/bin/python /opt/talaba_bot/bot.py
-Restart=always
+Restart=on-failure
 RestartSec=5
+TimeoutStopSec=240
+UMask=0077
 NoNewPrivileges=true
-
-# xavfsizlik: faqat shu fayllarni o'qish imkoni
-ReadWritePaths=/opt/talaba_bot/files /opt/talaba_bot/logs /opt/talaba_bot/bot.log
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+CapabilityBoundingSet=
+ReadWritePaths=/var/lib/talaba_bot /var/log/talaba_bot
 
 [Install]
 WantedBy=multi-user.target

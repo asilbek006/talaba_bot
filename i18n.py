@@ -16,8 +16,8 @@ LANGS = {
         "btn_myfiles": "📁 Mening ishlarim",
         "myfiles_title": "📁 Sizning ishlaringiz:",
         "myfiles_empty": "Hozircha ishlaringiz yo'q.\nBiror hujjat yarating, shunda shu yerda ko'rinadi 😉",
-        "file_gone": "Bu fayl 30 kundan ko'p saqlanmadi, o'chirilgan.",
-        "ask_topic_test": "📋 Test savollari uchun mavzu yozing.\n\nMisol: \"Matematika, integrallar\"",
+        "file_gone": "Faylning saqlash muddati tugagan yoki fayl mavjud emas.",
+        "ask_topic_test": '📋 Test savollari uchun mavzu yozing.\n\nMisol: "Matematika, integrallar"',
         "ask_count_qu": "🔢 Nechta savol kerak? (5–50)",
         "done_test": "✅ Test tayyor (Word)! Uni 🧩 Quiz boʻlimiga yuklab topshirish mumkin.",
         "btn_test": "📋 Test savollari",
@@ -50,32 +50,32 @@ LANGS = {
         "praise_hi": "Zoʻr natija! 🚀",
         "praise_mid": "Yaxshi, yana mashq qiling 💪",
         "praise_lo": "Qayta urinib koʻring, muvaffaqiyat! 📚",
-        "premium_msg": "⭐ PRO PAKET\n\nBepul rejimda kuniga {n} ta AI hujjat. Pro paket beradi:\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta slayd\n• 📊 Quiz tahlili\n\n💳 Toʻlov karta orqali: “Sotib olish”ni bosing → chek yuboring → admin tasdiqlaydi.",
-        "about_text": "👥 BIZ HAQIMIZDA\n\n🎓 TalabaBot — talabalar uchun AI yordamchi:\n referat, prezentatsiya, jadvall, testlar, tarjima va boshqalar.\n\nSavol yoki taklifingiz boʻlsa — \"✍️ Murojaat yozish\" tugmasini bosing, admin javob beradi.",
+        "premium_msg": "⭐ PRO PAKET\n\nBepul rejimda kuniga {n} ta AI hujjat. Pro paket beradi:\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta prezentatsiya\n• 📊 Quiz tahlili\n\n💳 Toʻlov karta orqali: “Sotib olish”ni bosing → chek yuboring → admin tasdiqlaydi.",
+        "about_text": '👥 BIZ HAQIMIZDA\n\n🎓 TalabaBot — talabalar uchun AI yordamchi:\n referat, prezentatsiya, jadvall, testlar, tarjima va boshqalar.\n\nSavol yoki taklifingiz boʻlsa — "✍️ Murojaat yozish" tugmasini bosing, admin javob beradi.',
         "ask_murojaat": "📮 Murojaatingizni yozing. Admin javob beradi.\n\nFikr, savol, taklif yoki muammo — hammasini yozing.",
         "murojaat_sent": "✅ Murojaatingiz adminga yuborildi. Javob kelganda koʻrasiz!",
         "admin_reply": "📩 Admin javobi:\n\n{text}",
         "reply_sent": "✅ Javob foydalanuvchiga yuborildi",
         "admin_info": "✅ Siz admin sifatida roʻyxatdagansiz!\n\n"
-                      "• kim botga kirsa — sizga xabar keladi\n"
-                      "• kim hujjat soʻrasa/yaratilsa — sizga xabar keladi\n"
-                      "• 👥 Biz haqimizda murojaati — sizga keladi\n"
-                      "• Murojaatga Reply (javob) berib yozsangiz — foydalanuvchiga yetadi\n"
-                      "• /stats — statistika\n"
-                      "• /grant &lt;user_id&gt; &lt;kun&gt; — Premium berish\n"
-                      "• /broadcast &lt;matn&gt; — hamkorga xabar",
+        "• kim botga kirsa — sizga xabar keladi\n"
+        "• kim hujjat soʻrasa/yaratilsa — sizga xabar keladi\n"
+        "• 👥 Biz haqimizda murojaati — sizga keladi\n"
+        "• Murojaatga Reply (javob) berib yozsangiz — foydalanuvchiga yetadi\n"
+        "• /stats — statistika\n"
+        "• /grant &lt;user_id&gt; &lt;kun&gt; — Premium berish\n"
+        "• /broadcast &lt;matn&gt; — hamkorga xabar",
         "admin_ok": "✅ Siz admin etib tayinlandingiz!",
         "admin_denied": "⛔ Sizda admin huquqi yoʻq.\n\nAdmin faqat rahbar tomonidan beriladi.",
         "busy": "⏳ Oldingi soʻrovingiz hali tayyorlanayapti. Tugagach natijangizni yuboraman.",
-        "limit_msg": "📄 Kunlik bepul limit (kuniga {n} ta AI hujjat) tugadi.\n\nBepul imkoniyat ertaga yangilanadi yoki ⭐ Premium oling — cheksiz hujjatlar.",
+        "limit_msg": "📄 Bugungi bepul limit ({n} ta AI hujjat) tugadi. Limit Toshkent vaqti bilan 00:00 da yangilanadi. Qo‘shimcha hujjatlar uchun Pro paket mavjud.",
         "queue": "⏳ Boshqa soʻrovlar ham tayyorlanayapti.\nQator raqamingiz: {pos}\nBiroz kuting...",
         "premium_buy_btn": "Sotib olish",
-        "pay_manual": "💳 <b>Pro paket</b> — {days} kun\n\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta slayd\n• 📊 Quiz tahlili\n\n💵 Summa: <b>15 000 soʻm</b>\n🏦 Karta: <code>{card}</code>\n👤 Egas: {holder}\n\nToʻlovni amalga oshirib, <b>chek (screenshot)</b>ni shu yerga yuboring.\nAdmin tekshirgach Pro paket yoqiladi.",
+        "pay_manual": "💳 <b>Pro paket</b> — {days} kun\n\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta prezentatsiya\n• 📊 Quiz tahlili\n\n💵 Summa: <b>{amount} soʻm</b>\n🏦 Karta: <code>{card}</code>\n👤 Egas: {holder}\n\nToʻlovni amalga oshirib, <b>chek (screenshot)</b>ni shu yerga yuboring.\nAdmin tekshirgach Pro paket yoqiladi.",
         "pay_proof_sent": "✅ Chek qabul qilindi!\n\nAdmin tekshirishi kutilmoqda (odatda tez). Tasdiqlangach xabar boradi.",
         "pay_rejected": "❌ Toʻlov tasdiqlanmadi.\n\nSavol boʻlsa adminga murojaat qiling.",
         "pay_ok_admin": "✅ Tasdiqlandi",
         "pay_no_admin": "❌ Rad etildi",
-        "pro_activated": "🎉 Pro paket {days} kun yoqildi!\n\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta slayd\n• 📊 Quiz tahlili\n\nEndi cheklovlar kalitlari yangilandi. Yaxshi ish!",
+        "pro_activated": "🎉 Pro paket {days} kun yoqildi!\n\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta prezentatsiya\n• 📊 Quiz tahlili\n\nEndi cheklovlar kalitlari yangilandi. Yaxshi ish!",
         "pro_limit_msg": "⛔ {what} limiti tugadi.\n\nYangi paket uchun ⭐ Premium tugmasini bosing.",
         "unit_word": "Word hujjat",
         "unit_slide": "Slayd",
@@ -86,7 +86,7 @@ LANGS = {
         "quiz_analysis_title": "📊 Quiz tahlili (Pro)",
         "quiz_weak": "📚 Takrorlash tavsiya etiladi: {n} ta savol notoʻgʻri.",
         "quiz_perfect": "🏆 Barcha savollarga toʻgʻri javob berdingiz — zoʻr!",
-        "premium_granted": "🎉 Sizga ⭐ Premium {days} kunga berildi! Endi cheksiz imkoniyatlar.",
+        "premium_granted": "🎉 Sizga {days} kunga Pro paket berildi. Qoldiqni ⭐ Premium bo‘limida ko‘ring.",
         "grant_usage": "Foydalanish: <code>/grant &lt;user_id&gt; &lt;kun&gt;</code>\nMisol: <code>/grant 123456789 30</code>",
         "grant_nouser": "Foydalanuvchi topilmadi: {uid}",
         "granted": "✅ {uid} foydalanuvchiga {days} kun Premium berildi.",
@@ -109,15 +109,15 @@ LANGS = {
         "t_translate_askfile": "🌐 Tarjima\n\nWord (.docx) fayl yuboring — tarjima qilib beraman.",
         "t_translate_target": "🌐 Qaysi tilga tarjima qilay?",
         "t_translate_done": "✅ Tarjima tayyor!",
-        "ask_topic_ref": "📝 Referat mavzusini yozing.\n\nMisol: \"Elektron tijoratning zamonaviy tendensiyalari\"",
-        "ask_topic_ppt": "🎤 Prezentatsiya mavzusini yozing.\n\nMisol: \"Sunʼiy intellekt taʼlimdagi oʻrni\"",
-        "ask_topic_xlsx": "📊 Jadvall mavzusini yozing.\n\nMisol: \"Oʻzbekiston viloyatlari boʻyicha aholi soni\"",
-        "ask_pages": "Nechta sahifa kerak? (1–30)\n\nBirinchi sahifa — muqova sifatida hisoblanadi.",
+        "ask_topic_ref": '📝 Referat mavzusini yozing.\n\nMisol: "Elektron tijoratning zamonaviy tendensiyalari"',
+        "ask_topic_ppt": '🎤 Prezentatsiya mavzusini yozing.\n\nMisol: "Sunʼiy intellekt taʼlimdagi oʻrni"',
+        "ask_topic_xlsx": '📊 Jadvall mavzusini yozing.\n\nMisol: "Oʻzbekiston viloyatlari boʻyicha aholi soni"',
+        "ask_pages": "Taxminan nechta sahifa kerak? (1–30)\n2 va undan ko‘p sahifada muqova qo‘shiladi. Yakuniy sahifa soni matn joylashuviga bog‘liq.",
         "ask_slides": "Nechta slayd kerak? (3–30)",
         "ask_rows": "Jadvalda qatorlar soni? (5–200)",
         "bad_number": "Faqat son kiriting.",
         "bad_range": "Faqat {lo} dan {hi} gacha son kiriting.",
-        "bad_topic": "Mavzu juda qisqa. Batafsilroq yozing.",
+        "bad_topic": "Mavzuni 4–500 belgi bilan yozing. Murojaat 3–3000 belgi bo‘lishi kerak.",
         "working": "⏳ Tayyorlanmoqda. Odatda 1–3 daqiqa kerak boʻladi...",
         "done_ref": "✅ Referat tayyor!",
         "done_pptx": "✅ Prezentatsiya tayyor!",
@@ -141,6 +141,18 @@ LANGS = {
         "conv_busy": "⏳ Konvertatsiya qilinmoqda...",
         "unknown": "Nomi noaniq. /start buyrugʻini bosing.",
         "footer": "TalabaBot",
+        "error_generic": "❌ Ishni tugatib bo‘lmadi. Qayta urinib ko‘ring. Tayyor bo‘lmagan AI ish uchun limit qaytariladi.",
+        "delivery_retry": "📁 Fayl tayyor va «Mening ishlarim»ga saqlandi. Uni shu bo‘limdan qayta yuklab oling.",
+        "queue_full": "⏳ Navbat to‘lgan. Birozdan keyin qayta urinib ko‘ring.",
+        "job_interrupted": "🔄 Bot qayta ishga tushdi. Tugallanmagan AI ishingiz uchun limit qaytarildi. So‘rovni qayta yuboring.",
+        "pay_already_processed": "Bu chek bo‘yicha qaror allaqachon chiqarilgan.",
+        "pay_legacy": "Eski chek tugmasi. Foydalanuvchidan chekni qayta yuborishni so‘rang.",
+        "payments_empty": "Tekshirilmagan to‘lovlar yo‘q.",
+        "support_unavailable": "Murojaatni hozir yetkazib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.",
+        "album_done": "✅ {n} ta rasm bitta PDF hujjatga birlashtirildi.",
+        "quota_balance": "Qoldiq: {w} ta Word/jadval/test, {s} ta prezentatsiya.\nBugungi bepul imkoniyat: {free} ta. Pro kvotasi tugasa bepul limit ishlaydi.",
+        "quiz_your_answer": "   Siz: {answer}",
+        "quiz_right_answer": "   To‘g‘ri: {answer}",
     },
     "ru": {
         "name": "Русский",
@@ -159,7 +171,7 @@ LANGS = {
         "btn_myfiles": "📁 Мои работы",
         "myfiles_title": "📁 Ваши работы:",
         "myfiles_empty": "Пока работ нет.\nСоздайте документ — он появится здесь 😉",
-        "file_gone": "Файл хранится 30 дней и был удалён.",
+        "file_gone": "Срок хранения истёк или файл недоступен.",
         "btn_test": "📋 Тест",
         "btn_quiz": "🧩 Квиз (банк вопросов)",
         "btn_doc2pdf": "📄 Word → PDF",
@@ -177,7 +189,7 @@ LANGS = {
         "t_docx2ppt": "📄→🎤 Word → PPTX",
         "t_rewrite": "✍️ Переписать",
         "t_translate": "🌐 Перевод",
-        "ask_topic_test": "📋 Напишите тему для теста.\n\nПример: \"Математика, интегралы\"",
+        "ask_topic_test": '📋 Напишите тему для теста.\n\nПример: "Математика, интегралы"',
         "ask_count_qu": "🔢 Сколько вопросов? (5–50)",
         "done_test": "✅ Тест готов (Word)! Его можно загрузить в 🧩 Квиз.",
         "quiz_format": "🧩 Создание квиза\n\nПришлите Word файл в формате:\n\n<code>Savol: ...\nA) ...\nB) ...\nC) ...\nD) ...\nTo'g'ri javob: B</code>\n\nКаждый вопрос в этом виде. Отправьте файл 👇",
@@ -193,32 +205,32 @@ LANGS = {
         "praise_hi": "Отличный результат! 🚀",
         "praise_mid": "Хорошо, практикуйтесь ещё 💪",
         "praise_lo": "Попробуйте ещё раз, всё получится! 📚",
-        "premium_msg": "⭐ PRO ПАКЕТ\n\nВ бесплатном режиме — {n} AI-документов в день. Pro пакет даёт:\n• 📄 {w} Word-документов\n• 🎤 {s} слайда\n• 📊 Анализ тестов\n\n💳 Оплата картой: нажмите «Купить» → отправьте чек → админ подтвердит.",
-        "about_text": "👥 О НАС\n\n🎓 TalabaBot — AI помощник студентов:\n рефераты, презентации, таблицы, тесты, перевод и другое.\n\nВопрос или предложение — нажмите \"✍️ Написать\", администратор ответит.",
+        "premium_msg": "⭐ PRO ПАКЕТ\n\nВ бесплатном режиме — {n} AI-документов в день. Pro пакет даёт:\n• 📄 {w} Word-документов\n• 🎤 {s} презентаций\n• 📊 Анализ тестов\n\n💳 Оплата картой: нажмите «Купить» → отправьте чек → админ подтвердит.",
+        "about_text": '👥 О НАС\n\n🎓 TalabaBot — AI помощник студентов:\n рефераты, презентации, таблицы, тесты, перевод и другое.\n\nВопрос или предложение — нажмите "✍️ Написать", администратор ответит.',
         "ask_murojaat": "📮 Напишите ваше обращение. Администратор ответит.",
         "murojaat_sent": "✅ Обращение отправлено администратору. Ответ придёт сюда!",
         "admin_reply": "📩 Ответ администратора:\n\n{text}",
         "reply_sent": "✅ Ответ отправлен пользователю",
         "admin_info": "✅ Вы уже в списке админов!\n\n"
-                      "• кто зайдёт в бота — вам придёт сообщение\n"
-                      "• кто запросит/создаст документ — вам придёт сообщение\n"
-                      "• 👥 обращение «О нас» — придёт вам\n"
-                      "• Ответьте (Reply) на обращение — пользователь получит его\n"
-                      "• /stats — статистика\n"
-                      "• /grant &lt;user_id&gt; &lt;дней&gt; — выдать Premium\n"
-                      "• /broadcast &lt;текст&gt; — сообщение всем",
+        "• кто зайдёт в бота — вам придёт сообщение\n"
+        "• кто запросит/создаст документ — вам придёт сообщение\n"
+        "• 👥 обращение «О нас» — придёт вам\n"
+        "• Ответьте (Reply) на обращение — пользователь получит его\n"
+        "• /stats — статистика\n"
+        "• /grant &lt;user_id&gt; &lt;дней&gt; — выдать Premium\n"
+        "• /broadcast &lt;текст&gt; — сообщение всем",
         "admin_ok": "✅ Вы назначены администратором!",
         "admin_denied": "⛔ У вас нет прав администратора.\n\nАдминистратором назначает только владелец.",
         "busy": "⏳ Ваш предыдущий запрос ещё готовится. Отправлю результат, как закончу.",
-        "limit_msg": "📄 Дневной бесплатный лимит ({n} AI-документов в день) исчерпан.\n\nБесплатно обновится завтра или оформите ⭐ Premium — без лимитов.",
+        "limit_msg": "📄 Бесплатный дневной лимит ({n} AI-документов) исчерпан. Обновление в 00:00 по Ташкенту. Дополнительные документы доступны в Pro-пакете.",
         "queue": "⏳ Обрабатываются другие запросы.\nВаше место в очереди: {pos}\nПодождите немного...",
         "premium_buy_btn": "Купить",
-        "pay_manual": "💳 <b>Pro пакет</b> — {days} дн.\n\n• 📄 {w} Word-документов\n• 🎤 {s} слайда\n• 📊 Анализ тестов\n\n💵 Сумма: <b>15 000 сум</b>\n🏦 Карта: <code>{card}</code>\n👤 Владелец: {holder}\n\nПереведите оплату и <b>пришлите чек (скриншот)</b> сюда.\nАдмин проверит и активирует Pro.",
+        "pay_manual": "💳 <b>Pro пакет</b> — {days} дн.\n\n• 📄 {w} Word-документов\n• 🎤 {s} презентаций\n• 📊 Анализ тестов\n\n💵 Сумма: <b>{amount} сум</b>\n🏦 Карта: <code>{card}</code>\n👤 Владелец: {holder}\n\nПереведите оплату и <b>пришлите чек (скриншот)</b> сюда.\nАдмин проверит и активирует Pro.",
         "pay_proof_sent": "✅ Чек получен!\n\nОжидается проверка админом (обычно быстро). После подтверждения придёт сообщение.",
         "pay_rejected": "❌ Оплата не подтверждена.\n\nПри вопросах — обратитесь к админу.",
         "pay_ok_admin": "✅ Подтверждено",
         "pay_no_admin": "❌ Отклонено",
-        "pro_activated": "🎉 Pro пакет на {days} дн. активирован!\n\n• 📄 {w} Word-документов\n• 🎤 {s} слайда\n• 📊 Анализ тестов\n\nУдачи!",
+        "pro_activated": "🎉 Pro пакет на {days} дн. активирован!\n\n• 📄 {w} Word-документов\n• 🎤 {s} презентаций\n• 📊 Анализ тестов\n\nУдачи!",
         "pro_limit_msg": "⛔ Лимит {what} исчерпан.\n\nДля нового пакета нажмите ⭐ Premium.",
         "unit_word": "Word-документов",
         "unit_slide": "слайдов",
@@ -229,7 +241,7 @@ LANGS = {
         "quiz_analysis_title": "📊 Анализ теста (Pro)",
         "quiz_weak": "📚 Рекомендуется повторить: {n} вопросов с ошибками.",
         "quiz_perfect": "🏆 Все вопросы верно — отлично!",
-        "premium_granted": "🎉 Вам выдан ⭐ Premium на {days} дн.! Теперь без ограничений.",
+        "premium_granted": "🎉 Pro-пакет активирован на {days} дней. Остаток доступен в разделе ⭐ Premium.",
         "grant_usage": "Использование: <code>/grant &lt;user_id&gt; &lt;дней&gt;</code>\nПример: <code>/grant 123456789 30</code>",
         "grant_nouser": "Пользователь не найден: {uid}",
         "granted": "✅ Пользователю {uid} выдан Premium на {days} дн.",
@@ -252,15 +264,15 @@ LANGS = {
         "t_translate_askfile": "🌐 Перевод\n\nОтправьте Word (.docx) файл.",
         "t_translate_target": "🌐 На какой язык перевести?",
         "t_translate_done": "✅ Перевод готов!",
-        "ask_topic_ref": "📝 Напишите тему реферата.\n\nПример: \"Современные тенденции электронной коммерции\"",
-        "ask_topic_ppt": "🎤 Напишите тему презентации.\n\nПример: \"Роль искусственного интеллекта в образовании\"",
-        "ask_topic_xlsx": "📊 Напишите тему таблицы.\n\nПример: \"Население областей Узбекистана\"",
-        "ask_pages": "Сколько страниц нужно? (1–30)\n\nПервая страница считается титульным листом.",
+        "ask_topic_ref": '📝 Напишите тему реферата.\n\nПример: "Современные тенденции электронной коммерции"',
+        "ask_topic_ppt": '🎤 Напишите тему презентации.\n\nПример: "Роль искусственного интеллекта в образовании"',
+        "ask_topic_xlsx": '📊 Напишите тему таблицы.\n\nПример: "Население областей Узбекистана"',
+        "ask_pages": "Примерно сколько страниц? (1–30)\nОт 2 страниц добавляется обложка. Итоговое число зависит от размещения текста.",
         "ask_slides": "Сколько слайдов нужно? (3–30)",
         "ask_rows": "Сколько строк в таблице? (5–200)",
         "bad_number": "Введите только число.",
         "bad_range": "Введите число от {lo} до {hi}.",
-        "bad_topic": "Тема слишком короткая. Напишите подробнее.",
+        "bad_topic": "Тема: 4–500 символов. Обращение: 3–3000 символов.",
         "working": "⏳ Готовится. Обычно нужно 1–3 минуты...",
         "done_ref": "✅ Реферат готов!",
         "done_pptx": "✅ Презентация готова!",
@@ -284,6 +296,18 @@ LANGS = {
         "conv_busy": "⏳ Конвертируется...",
         "unknown": "Не понял. Введите /start.",
         "footer": "TalabaBot",
+        "error_generic": "❌ Не удалось завершить работу. Попробуйте ещё раз. Лимит за незавершённую AI-работу возвращается.",
+        "delivery_retry": "📁 Файл готов и сохранён в «Мои работы». Скачайте его оттуда.",
+        "queue_full": "⏳ Очередь заполнена. Попробуйте немного позже.",
+        "job_interrupted": "🔄 Бот перезапущен. Лимит за незавершённую AI-работу возвращён. Отправьте запрос ещё раз.",
+        "pay_already_processed": "Решение по этому чеку уже принято.",
+        "pay_legacy": "Старая кнопка. Попросите пользователя отправить чек повторно.",
+        "payments_empty": "Нет непроверенных платежей.",
+        "support_unavailable": "Не удалось доставить обращение. Попробуйте позже.",
+        "album_done": "✅ Изображения ({n}) объединены в один PDF.",
+        "quota_balance": "Осталось: {w} документов Word/таблиц/тестов, {s} презентаций.\nБесплатно сегодня: {free}. После Pro-квоты доступен бесплатный лимит.",
+        "quiz_your_answer": "   Ваш ответ: {answer}",
+        "quiz_right_answer": "   Верный ответ: {answer}",
     },
     "en": {
         "name": "English",
@@ -302,7 +326,7 @@ LANGS = {
         "btn_myfiles": "📁 My works",
         "myfiles_title": "📁 Your works:",
         "myfiles_empty": "No works yet.\nCreate a document — it will appear here 😉",
-        "file_gone": "This file was stored for 30 days and has been deleted.",
+        "file_gone": "The retention period expired or the file is unavailable.",
         "btn_test": "📋 Test",
         "btn_quiz": "🧩 Quiz (question bank)",
         "btn_doc2pdf": "📄 Word → PDF",
@@ -320,7 +344,7 @@ LANGS = {
         "t_docx2ppt": "📄→🎤 Word → PPTX",
         "t_rewrite": "✍️ Rewrite",
         "t_translate": "🌐 Translate",
-        "ask_topic_test": "📋 Write the topic for the test.\n\nExample: \"Mathematics, integrals\"",
+        "ask_topic_test": '📋 Write the topic for the test.\n\nExample: "Mathematics, integrals"',
         "ask_count_qu": "🔢 How many questions? (5–50)",
         "done_test": "✅ Test ready (Word)! You can upload it to 🧩 Quiz.",
         "quiz_format": "🧩 Create a quiz\n\nSend a Word file in this format:\n\n<code>Savol: ...\nA) ...\nB) ...\nC) ...\nD) ...\nTo'g'ri javob: B</code>\n\nEach question in this form. Send the file 👇",
@@ -336,32 +360,32 @@ LANGS = {
         "praise_hi": "Great result! 🚀",
         "praise_mid": "Good, keep practicing 💪",
         "praise_lo": "Try again, you'll succeed! 📚",
-        "premium_msg": "⭐ PRO PACKAGE\n\nFree plan: {n} AI documents per day. Pro package gives:\n• 📄 {w} Word documents\n• 🎤 {s} slides\n• 📊 Quiz analysis\n\n💳 Pay by card: press “Buy” → send the receipt → admin confirms.",
-        "about_text": "👥 ABOUT US\n\n🎓 TalabaBot — AI assistant for students:\n essays, presentations, tables, tests, translation and more.\n\nQuestions or suggestions — press \"✍️ Contact\", the admin will reply.",
+        "premium_msg": "⭐ PRO PACKAGE\n\nFree plan: {n} AI documents per day. Pro package gives:\n• 📄 {w} Word documents\n• 🎤 {s} presentations\n• 📊 Quiz analysis\n\n💳 Pay by card: press “Buy” → send the receipt → admin confirms.",
+        "about_text": '👥 ABOUT US\n\n🎓 TalabaBot — AI assistant for students:\n essays, presentations, tables, tests, translation and more.\n\nQuestions or suggestions — press "✍️ Contact", the admin will reply.',
         "ask_murojaat": "📮 Write your message. The administrator will reply.",
         "murojaat_sent": "✅ Your message was sent to the administrator. You'll see the reply here!",
         "admin_reply": "📩 Admin reply:\n\n{text}",
         "reply_sent": "✅ Reply sent to the user",
         "admin_info": "✅ You are already in the admin list!\n\n"
-                      "• whoever enters the bot — you'll be notified\n"
-                      "• whoever requests/creates a document — you'll be notified\n"
-                      "• 👥 'About us' messages — come to you\n"
-                      "• Reply to the message to answer the user\n"
-                      "• /stats — statistics\n"
-                      "• /grant &lt;user_id&gt; &lt;days&gt; — grant Premium\n"
-                      "• /broadcast &lt;text&gt; — message to everyone",
+        "• whoever enters the bot — you'll be notified\n"
+        "• whoever requests/creates a document — you'll be notified\n"
+        "• 👥 'About us' messages — come to you\n"
+        "• Reply to the message to answer the user\n"
+        "• /stats — statistics\n"
+        "• /grant &lt;user_id&gt; &lt;days&gt; — grant Premium\n"
+        "• /broadcast &lt;text&gt; — message to everyone",
         "admin_ok": "✅ You have been made an administrator!",
         "admin_denied": "⛔ You don't have admin rights.\n\nOnly the owner can appoint admins.",
         "busy": "⏳ Your previous request is still being prepared. I'll send the result when it's done.",
-        "limit_msg": "📄 Daily free limit ({n} AI documents per day) reached.\n\nIt resets tomorrow or get ⭐ Premium — unlimited docs.",
+        "limit_msg": "📄 Today's free limit ({n} AI documents) is exhausted. It resets at 00:00 Tashkent time. A Pro package provides additional documents.",
         "queue": "⏳ Other requests are being processed.\nYour queue position: {pos}\nPlease wait...",
         "premium_buy_btn": "Buy",
-        "pay_manual": "💳 <b>Pro package</b> — {days} days\n\n• 📄 {w} Word documents\n• 🎤 {s} slides\n• 📊 Quiz analysis\n\n💵 Amount: <b>15 000 so'm</b>\n🏦 Card: <code>{card}</code>\n👤 Holder: {holder}\n\nSend the payment and <b>upload the receipt (screenshot)</b> here.\nThe admin will verify and activate the Pro package.",
+        "pay_manual": "💳 <b>Pro package</b> — {days} days\n\n• 📄 {w} Word documents\n• 🎤 {s} presentations\n• 📊 Quiz analysis\n\n💵 Amount: <b>{amount} UZS</b>\n🏦 Card: <code>{card}</code>\n👤 Holder: {holder}\n\nSend the payment and <b>upload the receipt (screenshot)</b> here.\nThe admin will verify and activate the Pro package.",
         "pay_proof_sent": "✅ Receipt received!\n\nWaiting for admin verification (usually quick). You'll be notified once approved.",
         "pay_rejected": "❌ Payment not confirmed.\n\nContact the admin if you have questions.",
         "pay_ok_admin": "✅ Approved",
         "pay_no_admin": "❌ Rejected",
-        "pro_activated": "🎉 Pro package activated for {days} days!\n\n• 📄 {w} Word documents\n• 🎤 {s} slides\n• 📊 Quiz analysis\n\nGood luck!",
+        "pro_activated": "🎉 Pro package activated for {days} days!\n\n• 📄 {w} Word documents\n• 🎤 {s} presentations\n• 📊 Quiz analysis\n\nGood luck!",
         "pro_limit_msg": "⛔ {what} limit reached.\n\nFor a new package press ⭐ Premium.",
         "unit_word": "Word document",
         "unit_slide": "Slide",
@@ -372,7 +396,7 @@ LANGS = {
         "quiz_analysis_title": "📊 Quiz analysis (Pro)",
         "quiz_weak": "📚 Recommended to review: {n} questions missed.",
         "quiz_perfect": "🏆 All answers correct — great!",
-        "premium_granted": "🎉 You've got ⭐ Premium for {days} days! Now unlimited.",
+        "premium_granted": "🎉 Your Pro package is active for {days} days. Check your balance in ⭐ Premium.",
         "grant_usage": "Usage: <code>/grant &lt;user_id&gt; &lt;days&gt;</code>\nExample: <code>/grant 123456789 30</code>",
         "grant_nouser": "User not found: {uid}",
         "granted": "✅ User {uid} got Premium for {days} days.",
@@ -395,15 +419,15 @@ LANGS = {
         "t_translate_askfile": "🌐 Translation\n\nSend a Word (.docx) file.",
         "t_translate_target": "🌐 Translate to which language?",
         "t_translate_done": "✅ Translation ready!",
-        "ask_topic_ref": "📝 Write your essay topic.\n\nExample: \"Modern trends in e-commerce\"",
-        "ask_topic_ppt": "🎤 Write your presentation topic.\n\nExample: \"The role of AI in education\"",
-        "ask_topic_xlsx": "📊 Write your table topic.\n\nExample: \"Population of Uzbekistan regions\"",
-        "ask_pages": "How many pages? (1–30)\n\nThe first page counts as the title page.",
+        "ask_topic_ref": '📝 Write your essay topic.\n\nExample: "Modern trends in e-commerce"',
+        "ask_topic_ppt": '🎤 Write your presentation topic.\n\nExample: "The role of AI in education"',
+        "ask_topic_xlsx": '📊 Write your table topic.\n\nExample: "Population of Uzbekistan regions"',
+        "ask_pages": "Approximately how many pages? (1–30)\nA cover is included for 2 or more pages. Actual pagination depends on text layout.",
         "ask_slides": "How many slides? (3–30)",
         "ask_rows": "How many rows? (5–200)",
         "bad_number": "Please enter a number only.",
         "bad_range": "Please enter a number between {lo} and {hi}.",
-        "bad_topic": "The topic is too short. Please add more detail.",
+        "bad_topic": "Topic: 4–500 characters. Support message: 3–3000 characters.",
         "working": "⏳ Generating. Usually takes 1–3 minutes...",
         "done_ref": "✅ Essay ready!",
         "done_pptx": "✅ Presentation ready!",
@@ -427,6 +451,18 @@ LANGS = {
         "conv_busy": "⏳ Converting...",
         "unknown": "Not understood. Type /start.",
         "footer": "TalabaBot",
+        "error_generic": "❌ Could not finish this job. Please try again. Credits for an unfinished AI job are refunded.",
+        "delivery_retry": "📁 Your file is ready and saved in My works. Download it there.",
+        "queue_full": "⏳ The queue is full. Please try again shortly.",
+        "job_interrupted": "🔄 The bot restarted. Your unfinished AI job was refunded. Please submit the request again.",
+        "pay_already_processed": "This receipt has already been processed.",
+        "pay_legacy": "Old receipt button. Ask the user to submit their receipt again.",
+        "payments_empty": "No pending payments.",
+        "support_unavailable": "Could not deliver your message. Please try again later.",
+        "album_done": "✅ {n} images combined into one PDF.",
+        "quota_balance": "Remaining: {w} Word/table/test documents, {s} presentations.\nFree today: {free}. The daily free limit remains available after Pro credits run out.",
+        "quiz_your_answer": "   Your answer: {answer}",
+        "quiz_right_answer": "   Correct answer: {answer}",
     },
 }
 
@@ -439,5 +475,6 @@ def t(lang: str, key: str, **kw) -> str:
     if not kw:
         return text
     from html import escape
+
     kw = {k: escape(str(v)) for k, v in kw.items()}
     return text.format(**kw)

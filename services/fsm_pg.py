@@ -1,9 +1,11 @@
+import asyncio
 import json
+from contextlib import asynccontextmanager
 from typing import Mapping
 
 from aiogram.exceptions import DataNotDictLikeError
 from aiogram.fsm.state import State
-from aiogram.fsm.storage.base import BaseStorage, StateType, StorageKey
+from aiogram.fsm.storage.base import BaseEventIsolation, BaseStorage, StateType, StorageKey
 
 import db
 from config import log
@@ -28,7 +30,7 @@ def _load(raw) -> dict:
 
 class PostgresStorage(BaseStorage):
     """Holat va data PostgreSQL fsm_record jadvalida saqlanadi.
-    Bot restart bo'lsa ham yo'qolmaydi, ko'p ishchi jarayon o'qisa ham xavfsiz."""
+    Bot restart bo'lsa ham yo'qolmaydi. Update isolation is supplied separately."""
 
     async def set_state(self, key: StorageKey, state: StateType = None) -> None:
         s = state.state if isinstance(state, State) else state
@@ -37,13 +39,22 @@ class PostgresStorage(BaseStorage):
                VALUES ($1, $2, $3, $4, '{}'::jsonb, $5)
                ON CONFLICT (bot_id, chat_id, user_id, thread_id)
                DO UPDATE SET state = EXCLUDED.state""",
-            key.bot_id, key.chat_id, key.user_id, key.thread_id or 0, s)
+            key.bot_id,
+            key.chat_id,
+            key.user_id,
+            key.thread_id or 0,
+            s,
+        )
 
     async def get_state(self, key: StorageKey) -> str | None:
         row = await db.POOL.fetchrow(
             "SELECT state FROM fsm_record WHERE bot_id=$1 AND chat_id=$2 "
             "AND user_id=$3 AND thread_id=$4",
-            key.bot_id, key.chat_id, key.user_id, key.thread_id or 0)
+            key.bot_id,
+            key.chat_id,
+            key.user_id,
+            key.thread_id or 0,
+        )
         return row["state"] if row else None
 
     async def set_data(self, key: StorageKey, data: Mapping[str, object]) -> None:
@@ -55,14 +66,22 @@ class PostgresStorage(BaseStorage):
                VALUES ($1, $2, $3, $4, $5::jsonb, NULL)
                ON CONFLICT (bot_id, chat_id, user_id, thread_id)
                DO UPDATE SET data = EXCLUDED.data""",
-            key.bot_id, key.chat_id, key.user_id, key.thread_id or 0,
-            json.dumps(data, ensure_ascii=False))
+            key.bot_id,
+            key.chat_id,
+            key.user_id,
+            key.thread_id or 0,
+            json.dumps(data, ensure_ascii=False),
+        )
 
     async def get_data(self, key: StorageKey) -> dict[str, object]:
         row = await db.POOL.fetchrow(
             "SELECT data FROM fsm_record WHERE bot_id=$1 AND chat_id=$2 "
             "AND user_id=$3 AND thread_id=$4",
-            key.bot_id, key.chat_id, key.user_id, key.thread_id or 0)
+            key.bot_id,
+            key.chat_id,
+            key.user_id,
+            key.thread_id or 0,
+        )
         return _load(row["data"]) if row else {}
 
     async def update_data(self, key: StorageKey, data: Mapping[str, object]) -> dict[str, object]:
@@ -72,9 +91,36 @@ class PostgresStorage(BaseStorage):
                ON CONFLICT (bot_id, chat_id, user_id, thread_id)
                DO UPDATE SET data = COALESCE(fsm_record.data, '{}'::jsonb) || EXCLUDED.data
                RETURNING data""",
-            key.bot_id, key.chat_id, key.user_id, key.thread_id or 0,
-            json.dumps(dict(data), ensure_ascii=False))
+            key.bot_id,
+            key.chat_id,
+            key.user_id,
+            key.thread_id or 0,
+            json.dumps(dict(data), ensure_ascii=False),
+        )
         return _load(row["data"]) if row else {}
 
     async def close(self) -> None:
+        pass
+
+
+class EventIsolation(BaseEventIsolation):
+    """Serialize one user's updates and release unused locks after the last waiter."""
+
+    def __init__(self):
+        self.locks = {}
+
+    @asynccontextmanager
+    async def lock(self, key: StorageKey):
+        entry = self.locks.setdefault(key, [asyncio.Lock(), 0])
+        entry[1] += 1
+        try:
+            async with entry[0]:
+                yield
+        finally:
+            entry[1] -= 1
+            if entry[1] == 0:
+                self.locks.pop(key, None)
+
+    async def close(self):
+        # In-flight lock contexts own their cleanup.
         pass

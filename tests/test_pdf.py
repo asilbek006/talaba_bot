@@ -55,6 +55,7 @@ def test_split_pdf(tmp_path):
 
 def test_doc_pdf_conversion(tmp_path):
     from docx import Document
+
     from services.doc_pdf import docx_to_pdf, pdf_to_docx
 
     doc = Document()
@@ -75,6 +76,7 @@ def test_doc_pdf_conversion(tmp_path):
 
 def test_image_to_pdf_conversion(tmp_path):
     from PIL import Image
+
     from services.doc_pdf import image_to_pdf
 
     img = Image.new("RGB", (200, 200), color="blue")

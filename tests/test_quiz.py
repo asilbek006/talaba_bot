@@ -64,9 +64,17 @@ def test_en_answer():
 def test_multiple_questions():
     lines = [
         "1. Savol 1",
-        "A) a1", "B) b1", "C) c1", "D) d1", "Javob: A",
+        "A) a1",
+        "B) b1",
+        "C) c1",
+        "D) d1",
+        "Javob: A",
         "2. Savol 2",
-        "A) a2", "B) b2", "C) c2", "D) d2", "To'g'ri javob: C",
+        "A) a2",
+        "B) b2",
+        "C) c2",
+        "D) d2",
+        "To'g'ri javob: C",
     ]
     qs = quiz.parse_questions(lines)
     assert len(qs) == 2
@@ -76,8 +84,7 @@ def test_multiple_questions():
 def test_no_answer_missing():
     lines = ["1. Savol", "A) a", "B) b", "C) c", "D) d"]
     qs = quiz.parse_questions(lines)
-    assert len(qs) == 1
-    assert qs[0]["answer"] is None
+    assert qs == []
 
 
 def test_few_options_filtered():
@@ -88,6 +95,7 @@ def test_few_options_filtered():
 
 def test_extract_docx(tmp_path):
     from docx import Document
+
     d = Document()
     d.add_paragraph("Savol:")
     d.add_paragraph("A) x")

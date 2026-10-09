@@ -1,11 +1,12 @@
-aiogram>=3.13
-python-dotenv>=1.0
-google-genai>=1.0
-python-pptx>=1.0
-python-docx>=1.1
-openpyxl>=3.1
-pypdf>=4.0
-pdf2docx>=0.5.8
-aiofiles>=24.1
-asyncpg>=0.30
-pytest>=8.0
+-c requirements.lock
+aiogram==3.31.0
+python-dotenv==1.2.4
+google-genai==2.29.0
+python-pptx==1.0.2
+python-docx==1.2.0
+openpyxl==3.1.5
+pypdf==6.19.0
+pdf2docx==0.5.13
+aiofiles==25.1.0
+asyncpg==0.32.0
+Pillow==12.3.0

@@ -2,6 +2,7 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
@@ -16,6 +17,13 @@ DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
 DAILY_LIMIT = max(1, int(os.getenv("DAILY_LIMIT", "3").strip() or "3"))
 GEMINI_MAX_CONCURRENT = max(1, int(os.getenv("GEMINI_MAX_CONCURRENT", "2").strip() or "2"))
+GEMINI_QUEUE_LIMIT = max(1, int(os.getenv("GEMINI_QUEUE_LIMIT", "20")))
+GEMINI_TIMEOUT = max(5, int(os.getenv("GEMINI_TIMEOUT", "60")))
+CONVERT_MAX_CONCURRENT = max(1, int(os.getenv("CONVERT_MAX_CONCURRENT", "2")))
+APP_TIMEZONE = ZoneInfo(os.getenv("APP_TIMEZONE", "Asia/Tashkent"))
+FILE_RETENTION_DAYS = max(1, int(os.getenv("FILE_RETENTION_DAYS", "30")))
+MAX_PDF_PAGES = max(1, int(os.getenv("MAX_PDF_PAGES", "300")))
+MAX_TEXT_CHARS = max(1000, int(os.getenv("MAX_TEXT_CHARS", "120000")))
 
 # Pro paket (bir martalik): PREMIUM_DAYS kun ichida PRO_WORD ta Word + PRO_SLIDE ta slayd + quiz tahlili
 PREMIUM_DAYS = max(1, int(os.getenv("PREMIUM_DAYS", "30").strip() or "30"))
@@ -27,17 +35,20 @@ PAYMENT_CARD = os.getenv("PAYMENT_CARD", "").strip()
 PAYMENT_HOLDER = os.getenv("PAYMENT_HOLDER", "").strip()
 PAYMENT_AMOUNT = os.getenv("PAYMENT_AMOUNT", "15000").strip()
 
-FILES_DIR = BASE_DIR / "files"
-FILES_DIR.mkdir(exist_ok=True)
+FILES_DIR = Path(os.getenv("FILES_DIR", str(BASE_DIR / "files"))).resolve()
+FILES_DIR.mkdir(parents=True, exist_ok=True)
 
-LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(exist_ok=True)
+LOG_DIR = Path(os.getenv("LOG_DIR", str(BASE_DIR / "logs"))).resolve()
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_DOWNLOAD = 20 * 1024 * 1024
+MAX_UPLOAD = 49 * 1024 * 1024
 
 _formatter = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
 logging.basicConfig(level=logging.INFO)
-_handler = RotatingFileHandler(LOG_DIR / "bot.log", maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
+_handler = RotatingFileHandler(
+    LOG_DIR / "bot.log", maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+)
 _handler.setFormatter(_formatter)
 logging.getLogger().addHandler(_handler)
 

@@ -2,19 +2,20 @@ import re
 from io import BytesIO
 from pathlib import Path
 
-import openpyxl
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm, Pt, RGBColor as DocxRGBColor
+from docx.shared import Cm, Pt
+from docx.shared import RGBColor as DocxRGBColor
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_AUTO_SIZE
-from pptx.util import Inches, Pt as PPt
+from pptx.util import Inches
+from pptx.util import Pt as PPt
 
 from services.image_utils import normalize_ppt_image
 
@@ -28,7 +29,11 @@ PREPARED = {
     "ru": {"by": "Выполнил:", "check": "Проверил:"},
     "en": {"by": "Prepared by:", "check": "Checked by:"},
 }
-THANKS = {"uz": "Eʼtiboringiz uchun rahmat!", "ru": "Спасибо за внимание!", "en": "Thank you for your attention!"}
+THANKS = {
+    "uz": "Eʼtiboringiz uchun rahmat!",
+    "ru": "Спасибо за внимание!",
+    "en": "Thank you for your attention!",
+}
 
 
 def _set_font(run, size=14, bold=False, name="Times New Roman"):
@@ -62,6 +67,7 @@ def _page_number(paragraph):
 def build_referat(data: dict, lang: str, path: Path) -> Path:
     doc = Document()
     sec = doc.sections[0]
+    sec.page_width, sec.page_height = Cm(21), Cm(29.7)
     sec.top_margin, sec.bottom_margin = Cm(2), Cm(2)
     sec.left_margin, sec.right_margin = Cm(3), Cm(1.5)
 
@@ -75,24 +81,25 @@ def build_referat(data: dict, lang: str, path: Path) -> Path:
     footer_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     _page_number(footer_p)
 
-    for _ in range(4):
-        doc.add_paragraph()
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _set_font(p.add_run(COVER_LABEL.get(lang, "REFERAT")), size=16, bold=True)
-    doc.add_paragraph()
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _set_font(p.add_run(data.get("title", "")), size=14, bold=True)
-    for _ in range(6):
-        doc.add_paragraph()
-    labels = PREPARED.get(lang, PREPARED["uz"])
-    for key in ("by", "check"):
+    if data.get("include_cover", True):
+        for _ in range(4):
+            doc.add_paragraph()
         p = doc.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        _set_font(p.add_run(f"{labels[key]} {'.' * 30}"), size=14)
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        _set_font(p.add_run(COVER_LABEL.get(lang, "REFERAT")), size=16, bold=True)
+        doc.add_paragraph()
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        _set_font(p.add_run(data.get("title", "")), size=14, bold=True)
+        for _ in range(6):
+            doc.add_paragraph()
+        labels = PREPARED.get(lang, PREPARED["uz"])
+        for key in ("by", "check"):
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            _set_font(p.add_run(f"{labels[key]} {'.' * 30}"), size=14)
 
-    doc.add_page_break()
+        doc.add_page_break()
 
     for i, section in enumerate(data.get("sections", [])):
         heading = str(section.get("heading", "")).strip()
@@ -120,6 +127,7 @@ def build_referat(data: dict, lang: str, path: Path) -> Path:
 
 def _add_box(slide, x, y, w, h, color):
     from pptx.enum.shapes import MSO_SHAPE
+
     shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y, w, h)
     shape.fill.solid()
     shape.fill.fore_color.rgb = color
@@ -194,8 +202,11 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
     for idx, s in enumerate(slides):
         slide = prs.slides.add_slide(blank)
         title = re.sub(r"^\s*\d+[.)]\s*", "", str(s.get("title", "")).strip())
-        bullets = [re.sub(r"^\s*\d+[.)]\s*", "", str(b).strip())
-                   for b in s.get("bullets", []) if str(b).strip()]
+        bullets = [
+            re.sub(r"^\s*\d+[.)]\s*", "", str(b).strip())
+            for b in s.get("bullets", [])
+            if str(b).strip()
+        ]
         notes = str(s.get("notes", "")).strip()
         image = s.get("image_bytes")
 
@@ -207,6 +218,7 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
             tb = slide.shapes.add_textbox(Inches(0.8), Inches(1.65), Inches(5.7), Inches(3.8))
             tf = tb.text_frame
             tf.word_wrap = True
+            tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
             p = tf.paragraphs[0]
             p.alignment = 1
             r = p.add_run()
@@ -256,6 +268,7 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
             tb = slide.shapes.add_textbox(title_x, title_y, W - title_x - Inches(0.8), Inches(0.85))
             tf = tb.text_frame
             tf.word_wrap = True
+            tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
             p = tf.paragraphs[0]
             r = p.add_run()
             r.text = title
@@ -265,16 +278,17 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
             r.font.name = "Arial"
 
             _add_picture_cropped(slide, image, image_x, image_y, image_w, image_h)
-            _add_slide_bullets(slide, bullets, text_x, text_y, text_w, text_h,
-                               ACCENT, base_size=14)
+            _add_slide_bullets(slide, bullets, text_x, text_y, text_w, text_h, ACCENT, base_size=14)
 
-            num = slide.shapes.add_textbox(W - Inches(1.2), H - Inches(0.55), Inches(0.9), Inches(0.4))
+            num = slide.shapes.add_textbox(
+                W - Inches(1.2), H - Inches(0.55), Inches(0.9), Inches(0.4)
+            )
             p = num.text_frame.paragraphs[0]
             p.alignment = 2
             r = p.add_run()
             r.text = str(idx + 1)
             r.font.size = PPt(14)
-            r.font.color.rgb = GRAY if layout != 0 else RGBColor(0xFF, 0xFF, 0xFF)
+            r.font.color.rgb = GRAY
             r.font.name = "Arial"
 
             ft = slide.shapes.add_textbox(Inches(0.4), H - Inches(0.55), Inches(4), Inches(0.4))
@@ -282,7 +296,7 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
             r = p.add_run()
             r.text = THANKS.get(lang, "") if idx == len(slides) - 1 else ""
             r.font.size = PPt(14)
-            r.font.color.rgb = GRAY if layout != 0 else RGBColor(0xFF, 0xFF, 0xFF)
+            r.font.color.rgb = GRAY
             r.font.name = "Arial"
 
         if notes:
@@ -295,10 +309,14 @@ def build_pptx(data: dict, lang: str, path: Path) -> Path:
 def build_xlsx(data: dict, lang: str, path: Path) -> Path:
     wb = Workbook()
     ws = wb.active
-    ws.title = "Jadval"
+    ws.title = {"uz": "Jadval", "ru": "Таблица", "en": "Table"}.get(lang, "Table")
 
     headers = [str(h) for h in data.get("headers", [])] or ["№", "Maʼlumot"]
-    rows = [[("" if c is None else c) for c in row] for row in data.get("rows", [])]
+    rows = [
+        [("" if c is None else c) for c in list(row)[: len(headers)]]
+        for row in data.get("rows", [])
+    ]
+    rows = [row + [""] * (len(headers) - len(row)) for row in rows]
     if not rows:
         rows = [["" for _ in headers]]
 
@@ -315,13 +333,15 @@ def build_xlsx(data: dict, lang: str, path: Path) -> Path:
     last_col = ws.cell(row=1, column=ncols).column_letter
     ws.merge_cells(f"A1:{last_col}1")
     title_cell = ws["A1"]
-    title_cell.value = data.get("title", "")
+    title_cell.value = str(data.get("title", ""))
+    title_cell.data_type = "s"
     title_cell.font = Font(name="Arial", size=13, bold=True, color="1E2A5A")
     title_cell.alignment = center
     ws.row_dimensions[1].height = 26
 
     for c, h in enumerate(headers, 1):
         cell = ws.cell(row=2, column=c, value=h)
+        cell.data_type = "s"
         cell.fill = dark_fill
         cell.font = white_font
         cell.alignment = center
@@ -332,6 +352,8 @@ def build_xlsx(data: dict, lang: str, path: Path) -> Path:
         for c in range(1, ncols + 1):
             val = row[c - 1] if c - 1 < len(row) else ""
             cell = ws.cell(row=r, column=c, value=val)
+            if isinstance(val, str):
+                cell.data_type = "s"
             cell.font = body_font
             cell.alignment = left if c == 1 or not isinstance(val, (int, float)) else center
             cell.border = border
@@ -339,20 +361,40 @@ def build_xlsx(data: dict, lang: str, path: Path) -> Path:
                 cell.fill = alt_fill
 
     for c, h in enumerate(headers, 1):
-        longest = max([len(str(h))] + [len(str(row[c - 1])) if c - 1 < len(row) else 0 for row in rows])
-        ws.column_dimensions[ws.cell(row=2, column=c).column_letter].width = min(max(longest + 4, 10), 55)
+        longest = max(
+            [len(str(h))] + [len(str(row[c - 1])) if c - 1 < len(row) else 0 for row in rows]
+        )
+        ws.column_dimensions[ws.cell(row=2, column=c).column_letter].width = min(
+            max(longest + 4, 10), 55
+        )
 
     ws.freeze_panes = "A3"
     note = str(data.get("note", "") or "").strip()
     if note:
-        ws.cell(row=len(rows) + 4, column=1, value=note).font = Font(name="Arial", size=9, italic=True, color="777777")
+        ws.cell(row=len(rows) + 4, column=1, value=note).data_type = "s"
+        ws.cell(row=len(rows) + 4, column=1).font = Font(
+            name="Arial", size=9, italic=True, color="777777"
+        )
 
-    num_col = next((c for c in range(1, ncols + 1)
-                    if rows and all(isinstance(r[c - 1], (int, float)) for r in rows)), None)
-    category_col = next((c for c in range(1, ncols + 1)
-                         if c != num_col and rows and all(str(r[c - 1]).strip() for r in rows)), 1)
+    num_col = next(
+        (
+            c
+            for c in range(1, ncols + 1)
+            if rows and all(isinstance(r[c - 1], (int, float)) for r in rows)
+        ),
+        None,
+    )
+    category_col = next(
+        (
+            c
+            for c in range(1, ncols + 1)
+            if c != num_col and rows and all(str(r[c - 1]).strip() for r in rows)
+        ),
+        1,
+    )
     if num_col and rows:
         from openpyxl.chart import BarChart, Reference
+
         chart = BarChart()
         chart.type = "col"
         chart.style = 10
@@ -372,6 +414,7 @@ def build_xlsx(data: dict, lang: str, path: Path) -> Path:
 def build_test_docx(questions: list[dict], lang: str, path: Path) -> Path:
     doc = Document()
     sec = doc.sections[0]
+    sec.page_width, sec.page_height = Cm(21), Cm(29.7)
     sec.top_margin = sec.bottom_margin = Cm(2)
     sec.left_margin = Cm(3)
     sec.right_margin = Cm(1.5)
@@ -382,7 +425,15 @@ def build_test_docx(questions: list[dict], lang: str, path: Path) -> Path:
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _set_font(p.add_run("TEST SAVOLLARI"), size=16, bold=True)
+    _set_font(
+        p.add_run(
+            {"uz": "TEST SAVOLLARI", "ru": "ТЕСТОВЫЕ ВОПРОСЫ", "en": "TEST QUESTIONS"}.get(
+                lang, "TEST SAVOLLARI"
+            )
+        ),
+        size=16,
+        bold=True,
+    )
     doc.add_paragraph()
 
     for i, q in enumerate(questions, 1):
@@ -402,13 +453,24 @@ def build_test_docx(questions: list[dict], lang: str, path: Path) -> Path:
         p.paragraph_format.left_indent = Cm(0.6)
         p.paragraph_format.space_after = Pt(4)
         ans_idx = q.get("answer")
-        ans_letter = letters[ans_idx] if isinstance(ans_idx, int) and 0 <= ans_idx < len(q.get("options", [])) else "?"
-        color = DocxRGBColor(0x19, 0x7B, 0x30) if ans_letter != "?" else DocxRGBColor(0xC0, 0x39, 0x2B)
+        ans_letter = (
+            letters[ans_idx]
+            if isinstance(ans_idx, int) and 0 <= ans_idx < len(q.get("options", []))
+            else "?"
+        )
+        color = (
+            DocxRGBColor(0x19, 0x7B, 0x30) if ans_letter != "?" else DocxRGBColor(0xC0, 0x39, 0x2B)
+        )
         p = doc.add_paragraph()
         p.paragraph_format.left_indent = Cm(0.6)
         p.paragraph_format.space_after = Pt(4)
         p.paragraph_format.line_spacing = 1.5
-        _set_font(p.add_run(f"Toʻgʻri javob: {ans_letter}"), size=14)
+        _set_font(
+            p.add_run(
+                f"{ {'uz': 'Toʻgʻri javob', 'ru': 'Правильный ответ', 'en': 'Correct answer'}.get(lang, 'Toʻgʻri javob') }: {ans_letter}"
+            ),
+            size=14,
+        )
         p.runs[0].font.color.rgb = color
 
     doc.save(path)
@@ -418,6 +480,7 @@ def build_test_docx(questions: list[dict], lang: str, path: Path) -> Path:
 def build_text_docx(paragraphs: list[str], title: str, path: Path) -> Path:
     doc = Document()
     sec = doc.sections[0]
+    sec.page_width, sec.page_height = Cm(21), Cm(29.7)
     sec.top_margin = sec.bottom_margin = Cm(2)
     sec.left_margin = Cm(3)
     sec.right_margin = Cm(1.5)

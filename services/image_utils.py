@@ -20,8 +20,13 @@ def normalize_ppt_image(image_bytes: bytes) -> bytes:
         if image.format not in {"JPEG", "PNG", "WEBP"}:
             raise ValueError("Unsupported image format")
         width, height = image.size
-        if (width < 1 or height < 1 or width > MAX_IMAGE_SIDE
-                or height > MAX_IMAGE_SIDE or width * height > MAX_IMAGE_PIXELS):
+        if (
+            width < 1
+            or height < 1
+            or width > MAX_IMAGE_SIDE
+            or height > MAX_IMAGE_SIDE
+            or width * height > MAX_IMAGE_PIXELS
+        ):
             raise ValueError("Image dimensions exceed the limit")
         image.verify()
 
