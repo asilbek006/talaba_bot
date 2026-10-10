@@ -35,16 +35,16 @@ from aiogram.types import (
 
 import config
 import db
+import services.badwords as badwords
 import services.convert as conv
 import services.documents as docs
 import services.generator as gen
 import services.images as images_mod
+import services.moderation as mod
 import services.payments as payments
 import services.pdf as pdf_tool
 import services.quiz as quiz_tool
 import services.storage as file_store
-import services.badwords as badwords
-import services.moderation as mod
 from config import log
 from i18n import DEFAULT_LANG, LANGS, t
 from services.fsm_pg import EventIsolation, PostgresStorage
@@ -497,7 +497,11 @@ def fmt_file_row(f: dict, idx: int, lang: str) -> str:
 
 
 async def safe_edit(msg, text: str, kb=None):
-    if getattr(msg, "document", None) or getattr(msg, "photo", None) or getattr(msg, "text", None) is None:
+    if (
+        getattr(msg, "document", None)
+        or getattr(msg, "photo", None)
+        or getattr(msg, "text", None) is None
+    ):
         try:
             await msg.edit_reply_markup(reply_markup=None)
         except Exception:
@@ -1380,7 +1384,9 @@ async def on_quiz_count(message: Message, state: FSMContext):
     await message.answer(t(lang, "quiz_time"), reply_markup=kb_quiz_time(lang))
 
 
-async def start_quiz_session(target: Message, state: FSMContext, sec: int, uid: int, is_callback=False):
+async def start_quiz_session(
+    target: Message, state: FSMContext, sec: int, uid: int, is_callback=False
+):
     data = await state.get_data()
     lang = data.get("lang", DEFAULT_LANG)
     await cancel_quiz(state)

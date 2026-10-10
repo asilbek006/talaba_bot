@@ -1,5 +1,5 @@
-from pathlib import Path
 import re
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BADWORDS_PATHS = [
@@ -18,6 +18,7 @@ def _load_words() -> set[str]:
         try:
             if p.suffix == ".xlsx":
                 from openpyxl import load_workbook
+
                 wb = load_workbook(p, read_only=True, data_only=True)
                 ws = wb.active
                 for row in ws.iter_rows(values_only=True):
@@ -49,6 +50,7 @@ def has_badword(text: str) -> bool:
     if not text:
         return False
     from services.moderation import is_insult
+
     if is_insult(text):
         return True
     t = text.lower()

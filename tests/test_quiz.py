@@ -130,6 +130,7 @@ def test_txt_format(tmp_path):
 
 def test_xlsx_format(tmp_path):
     from openpyxl import Workbook
+
     wb = Workbook()
     ws = wb.active
     ws.append(["Savol", "A", "B", "C", "D", "To'g'ri javob"])
@@ -192,4 +193,3 @@ def test_text_direct_extraction():
     assert len(qs) == 2
     assert qs[0]["answer"] == 1
     assert qs[1]["answer"] == 0
-

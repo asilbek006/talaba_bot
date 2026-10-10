@@ -1,7 +1,5 @@
-from pathlib import Path
-import pytest
-import services.moderation as mod
 import services.badwords as badwords
+import services.moderation as mod
 
 
 def test_insult_detection():

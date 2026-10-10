@@ -40,9 +40,26 @@ def extract_txt(path) -> list[str]:
 
 
 ANSWER_MAP = {
-    "A": 0, "B": 1, "C": 2, "D": 3, "E": 4, "F": 5, "G": 6, "H": 7,
-    "А": 0, "Б": 1, "В": 2, "Г": 3, "Д": 4, "Е": 5,
-    "1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5,
+    "A": 0,
+    "B": 1,
+    "C": 2,
+    "D": 3,
+    "E": 4,
+    "F": 5,
+    "G": 6,
+    "H": 7,
+    "А": 0,
+    "Б": 1,
+    "В": 2,
+    "Г": 3,
+    "Д": 4,
+    "Е": 5,
+    "1": 0,
+    "2": 1,
+    "3": 2,
+    "4": 3,
+    "5": 4,
+    "6": 5,
 }
 
 Q_RE = re.compile(r"^\s*(savol|савол|question|вопрос)\s*[:.\-)]*\s*", re.I)
@@ -96,9 +113,25 @@ def parse_questions(lines) -> list[dict]:
 
 def parse_table_questions(rows) -> list[dict]:
     letters_map = {
-        "a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7,
-        "а": 0, "б": 1, "в": 2, "г": 3, "д": 4, "е": 5,
-        "1": 0, "2": 1, "3": 2, "4": 3, "5": 4,
+        "a": 0,
+        "b": 1,
+        "c": 2,
+        "d": 3,
+        "e": 4,
+        "f": 5,
+        "g": 6,
+        "h": 7,
+        "а": 0,
+        "б": 1,
+        "в": 2,
+        "г": 3,
+        "д": 4,
+        "е": 5,
+        "1": 0,
+        "2": 1,
+        "3": 2,
+        "4": 3,
+        "5": 4,
     }
     qs = []
     for row in rows:
@@ -127,12 +160,16 @@ def parse_table_questions(rows) -> list[dict]:
         q_text = re.sub(r"^(savol|question|вопрос)\s*[:.\-)]*\s*", "", q_text, flags=re.I).strip()
 
         ans_idx = None
-        ans_clean = re.sub(
-            r"^(to[ʻ'’`]?g[ʻ'’`]?ri\s*javob|javob[a-z]*|answer|ответ|прав[a-z]*\s*ответ)\s*[:.\-)]*\s*",
-            "",
-            raw_ans,
-            flags=re.I,
-        ).strip().lower()
+        ans_clean = (
+            re.sub(
+                r"^(to[ʻ'’`]?g[ʻ'’`]?ri\s*javob|javob[a-z]*|answer|ответ|прав[a-z]*\s*ответ)\s*[:.\-)]*\s*",
+                "",
+                raw_ans,
+                flags=re.I,
+            )
+            .strip()
+            .lower()
+        )
 
         if ans_clean in letters_map and letters_map[ans_clean] < len(options):
             ans_idx = letters_map[ans_clean]
@@ -156,16 +193,19 @@ def parse_table_questions(rows) -> list[dict]:
             cleaned_opts.append(clean_opt)
 
         if ans_idx is not None and 2 <= len(cleaned_opts) <= 8 and len(q_text) >= 2:
-            qs.append({
-                "q": q_text,
-                "options": cleaned_opts,
-                "answer": ans_idx,
-            })
+            qs.append(
+                {
+                    "q": q_text,
+                    "options": cleaned_opts,
+                    "answer": ans_idx,
+                }
+            )
     return qs[:500]
 
 
 def extract_excel(path) -> list[dict]:
     from openpyxl import load_workbook
+
     wb = load_workbook(path, read_only=True, data_only=True)
     ws = wb.active
     rows = []
