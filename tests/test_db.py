@@ -151,6 +151,15 @@ def test_stats_kinds_labels(pg):
     run(cleanup_users([uid]))
 
 
+def test_recent_users(pg):
+    uid = 9_000_000_051 + int(time.time()) % 1000
+    run(db.upsert_user(uid, "RecentUser", "recent_user_handle", "uz"))
+    users = run(db.recent_users(limit=5))
+    assert isinstance(users, list)
+    assert any(u["id"] == uid for u in users)
+    run(cleanup_users([uid]))
+
+
 def test_expiring_and_expired(pg):
     now = int(time.time())
     soon_uid = 9_000_000_060 + now % 1000

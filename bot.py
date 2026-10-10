@@ -614,18 +614,61 @@ async def cmd_stats(message: Message):
     s = await db.stats()
     kinds = await db.stats_kinds()
     lines = [
-        "📊 Statistika\n",
-        f"👥 Foydalanuvchilar: {s['total']}",
-        f"🟢 Oxirgi 24 soatda: {s['day']}",
-        f"📄 Yaratilgan hujjatlar: {s['docs']}",
-        f"⭐ Premium: {s['premium']}",
+        "📊 <b>Statistika</b>\n",
+        f"👥 <b>Jami foydalanuvchilar:</b> {s['total']}",
+        f"🟢 <b>Oxirgi 24 soatda faol:</b> {s['day']}",
+        f"📄 <b>Yaratilgan hujjatlar:</b> {s['docs']}",
+        f"⭐ <b>Premium / Pro:</b> {s['premium']}",
     ]
     if kinds:
         lines.append("")
-        lines.append("📁 Hujjat turlari:")
+        lines.append("📁 <b>Hujjat turlari:</b>")
         for k in kinds:
             lines.append(f"   • {FILE_LABEL.get(k['kind'], k['kind'])}: {k['n']}")
-    await message.answer("\n".join(lines))
+
+    parts = (message.text or "").split()
+    limit = 15
+    if len(parts) > 1 and parts[1].isdigit():
+        limit = min(50, max(1, int(parts[1])))
+
+    recents = await db.recent_users(limit=limit)
+    if recents:
+        lines.append("")
+        lines.append(f"👤 <b>Oxirgi faol foydalanuvchilar (Top-{len(recents)}):</b>")
+        for idx, u in enumerate(recents, 1):
+            uname = f"@{u['username']}" if u.get("username") else "—"
+            raw_name = u.get("name") or "Foydalanuvchi"
+            clean_name = raw_name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            uid = u.get("id")
+            udocs = u.get("docs", 0)
+            last = u.get("last_seen", 0)
+            t_str = (
+                datetime.datetime.fromtimestamp(last).strftime("%d.%m.%Y %H:%M") if last else "—"
+            )
+            lines.append(
+                f"{idx}. <b>{clean_name}</b> ({uname}) | ID: <code>{uid}</code>\n"
+                f"    📄 {udocs} ta hujjat | 🕒 {t_str}"
+            )
+
+    full_text = "\n".join(lines)
+    if len(full_text) <= 4000:
+        await message.answer(full_text)
+    else:
+        chunks = []
+        cur = []
+        cur_len = 0
+        for line in lines:
+            if cur_len + len(line) + 1 > 3800:
+                chunks.append("\n".join(cur))
+                cur = [line]
+                cur_len = len(line)
+            else:
+                cur.append(line)
+                cur_len += len(line) + 1
+        if cur:
+            chunks.append("\n".join(cur))
+        for ch in chunks:
+            await message.answer(ch)
 
 
 @router.message(Command("grant"))
@@ -664,14 +707,21 @@ async def cmd_broadcast(message: Message, bot: Bot):
     if message.from_user.id not in await db.admin_ids():
         return
     text = (message.text or "").removeprefix("/broadcast").strip()
-    if not text:
+    reply = message.reply_to_message
+    if not text and not reply:
         await message.answer(t(DEFAULT_LANG, "broadcast_usage"))
         return
     users = await db.all_users()
     ok = fail = 0
     for u in users:
         try:
-            await bot.send_message(u["id"], text)
+            if reply:
+                await reply.copy_to(chat_id=u["id"])
+            else:
+                try:
+                    await bot.send_message(u["id"], text)
+                except TelegramBadRequest:
+                    await bot.send_message(u["id"], text, parse_mode=None)
             ok += 1
         except Exception as e:
             fail += 1

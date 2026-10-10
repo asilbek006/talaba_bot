@@ -341,6 +341,15 @@ async def all_users() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+async def recent_users(limit: int = 15) -> list[dict]:
+    rows = await POOL.fetch(
+        "SELECT id, name, username, lang, docs, first_seen, last_seen "
+        "FROM users ORDER BY last_seen DESC LIMIT $1",
+        limit,
+    )
+    return [dict(r) for r in rows]
+
+
 async def add_file(uid: int, kind: str, title: str, path: str, size: int) -> int:
     return await POOL.fetchval(
         "INSERT INTO user_files (user_id, kind, title, path, size, created_at) "
