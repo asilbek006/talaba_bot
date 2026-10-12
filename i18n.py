@@ -50,7 +50,19 @@ LANGS = {
         "praise_hi": "Zoʻr natija! 🚀",
         "praise_mid": "Yaxshi, yana mashq qiling 💪",
         "praise_lo": "Qayta urinib koʻring, muvaffaqiyat! 📚",
-        "premium_msg": "⭐ PRO PAKET\n\nBepul rejimda kuniga {n} ta AI hujjat. Pro paket beradi:\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta prezentatsiya\n• 🧩 {q} marta Quiz\n\n💳 Toʻlov karta orqali: “Sotib olish”ni bosing → chek yuboring → admin tasdiqlaydi.",
+        "premium_msg": (
+            "⭐ <b>TARIFLAR VA LIMITLAR</b>\n\n"
+            "🆓 <b>Bepul tarif:</b>\n"
+            "• Har kuni <b>{n} ta</b> bepul AI hujjat (Word, Slayd yoki Quiz)\n"
+            "• Har kuni Toshkent vaqti bilan <b>00:00</b> da avtomatik yangilanadi\n\n"
+            "💎 <b>PRO paket:</b>\n"
+            "• 📄 <b>{w} ta</b> Word hujjat (referat, kurs ishi, mustaqil ish)\n"
+            "• 🎤 <b>{s} ta</b> PowerPoint prezentatsiya (slaydlar)\n"
+            "• 🧩 <b>{q} ta</b> Test / Quiz to‘plami\n"
+            "• ⏳ <b>Muddatsiz</b> — limitlar hech qachon kuymaydi!\n"
+            "• 🔄 Pro tugasa ham, kunlik {n} ta bepul limitingiz o‘z kuchida qolaveradi\n\n"
+            "<i>Xarid qilish uchun quyidagi “💳 Sotib olish” tugmasini bosing:</i>"
+        ),
         "about_text": '👥 BIZ HAQIMIZDA\n\n🎓 TalabaBot — talabalar uchun AI yordamchi:\n referat, prezentatsiya, jadvall, testlar, tarjima va boshqalar.\n\nSavol yoki taklifingiz boʻlsa — "✍️ Murojaat yozish" tugmasini bosing, admin javob beradi.',
         "ask_murojaat": "📮 Murojaatingizni yozing. Admin javob beradi.\n\nFikr, savol, taklif yoki muammo — hammasini yozing.",
         "murojaat_sent": "✅ Murojaatingiz adminga yuborildi. Javob kelganda koʻrasiz!",
@@ -68,10 +80,29 @@ LANGS = {
         "admin_denied": "⛔ Sizda admin huquqi yoʻq.\n\nAdmin faqat rahbar tomonidan beriladi.",
         "admin_only": "⛔ Bu buyruq siz uchun ishlamaydi. U faqat adminlar uchun moʻljallangan!",
         "busy": "⏳ Oldingi soʻrovingiz hali tayyorlanayapti. Tugagach natijangizni yuboraman.",
-        "limit_msg": "📄 Bugungi bepul limit ({n} ta AI hujjat) tugadi. Limit Toshkent vaqti bilan 00:00 da yangilanadi. Qo‘shimcha hujjatlar uchun Pro paket mavjud.",
+        "limit_msg": (
+            "⚠️ <b>Bugungi bepul limitingiz tugadi!</b>\n\n"
+            "Siz bugun {n} ta bepul AI imkoniyatidan to‘liq foydalandingiz.\n"
+            "• Yangi bepul limit Toshkent vaqti bilan <b>00:00 da</b> beriladi.\n"
+            "• Kutmasdan davom ettirish uchun <b>Pro paket</b> xarid qilishingiz mumkin."
+        ),
         "queue": "⏳ Boshqa soʻrovlar ham tayyorlanayapti.\nQator raqamingiz: {pos}\nBiroz kuting...",
         "premium_buy_btn": "Sotib olish",
-        "pay_manual": "💳 <b>Pro paket</b>\n\n• 📄 {w} ta Word hujjat\n• 🎤 {s} ta prezentatsiya\n• 🧩 {q} marta Quiz\n\n💵 Summa: <b>{amount} soʻm</b>\n🏦 Karta: <code>{card}</code>\n👤 Egasi: {holder}\n\nToʻlovni amalga oshirib, <b>chek (screenshot)</b>ni shu yerga yuboring.\nAdmin tekshirgach Pro paket yoqiladi.\n\nPaket muddatsiz; kvotalar tugaguncha amal qiladi.",
+        "pay_manual": (
+            "💳 <b>PRO PAKET XARIDI</b>\n\n"
+            "Paket ichida:\n"
+            "• 📄 <b>{w} ta</b> Word hujjat\n"
+            "• 🎤 <b>{s} ta</b> Prezentatsiya\n"
+            "• 🧩 <b>{q} ta</b> Test/Quiz\n"
+            "• ⏳ <b>Muddatsiz</b> (limitlar kuymaydi)\n\n"
+            "💵 Toʻlov summasi: <b>{amount} soʻm</b>\n"
+            "🏦 Karta raqami: <code>{card}</code> <i>(nusxalash uchun ustiga bosing)</i>\n"
+            "👤 Karta egasi: <b>{holder}</b>\n\n"
+            "📌 <b>Toʻlov tartibi:</b>\n"
+            "1. Karta raqamini nusxalab, <b>{amount} soʻm</b> oʻtkazing.\n"
+            "2. Toʻlov chekini (screenshot/rasm) <b>shu chatga yuboring</b>.\n"
+            "3. Admin tezkor tekshirib, Pro limitingizni faollashtiradi!"
+        ),
         "pay_proof_sent": "✅ Chek qabul qilindi!\n\nAdmin tekshirishi kutilmoqda (odatda tez). Tasdiqlangach xabar boradi.",
         "pay_rejected": "❌ Toʻlov tasdiqlanmadi.\n\nSavol boʻlsa adminga murojaat qiling.",
         "pay_ok_admin": "✅ Tasdiqlandi",
@@ -153,7 +184,13 @@ LANGS = {
         "payments_empty": "Tekshirilmagan to‘lovlar yo‘q.",
         "support_unavailable": "Murojaatni hozir yetkazib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.",
         "album_done": "✅ {n} ta rasm bitta PDF hujjatga birlashtirildi.",
-        "quota_balance": "Qoldiq: {w} ta Word/jadval, {s} ta prezentatsiya, {q} ta test/quiz.\nBugungi bepul limit: {free}. Pro kvotasi tugaganda bepul limit mavjud.",
+        "quota_balance": (
+            "📊 <b>Sizning balansingiz:</b>\n"
+            "• Bugungi bepul limit: <b>{free} ta</b> (00:00 da yangilanadi)\n"
+            "• Pro Word qoldigʻi: <b>{w} ta</b>\n"
+            "• Pro Slayd qoldigʻi: <b>{s} ta</b>\n"
+            "• Pro Quiz qoldigʻi: <b>{q} ta</b>"
+        ),
         "quiz_your_answer": "   Siz: {answer}",
         "quiz_right_answer": "   To‘g‘ri: {answer}",
     },
@@ -208,7 +245,19 @@ LANGS = {
         "praise_hi": "Отличный результат! 🚀",
         "praise_mid": "Хорошо, практикуйтесь ещё 💪",
         "praise_lo": "Попробуйте ещё раз, всё получится! 📚",
-        "premium_msg": "⭐ PRO ПАКЕТ\n\nВ бесплатном режиме — {n} AI-документов в день. Pro пакет даёт:\n• 📄 {w} Word-документов\n• 🎤 {s} презентаций\n• 🧩 {q} раз Quiz\n\n💳 Оплата картой: нажмите «Купить» → отправьте чек → админ подтвердит.",
+        "premium_msg": (
+            "⭐ <b>ТАРИФЫ И ЛИМИТЫ</b>\n\n"
+            "🆓 <b>Бесплатный тариф:</b>\n"
+            "• <b>{n}</b> бесплатных AI-документа в день (Word, Презентация или Тест)\n"
+            "• Автоматическое обновление каждый день в <b>00:00</b> по Ташкенту\n\n"
+            "💎 <b>PRO пакет:</b>\n"
+            "• 📄 <b>{w}</b> Word-документов (рефераты, курсовые, самостоятельные)\n"
+            "• 🎤 <b>{s}</b> PowerPoint презентаций (слайды)\n"
+            "• 🧩 <b>{q}</b> наборов тестов / квизов\n"
+            "• ⏳ <b>Бессрочно</b> — лимиты никогда не сгорают!\n"
+            "• 🔄 Даже после расхода Pro, бесплатные {n} лимита в день остаются\n\n"
+            "<i>Для покупки нажмите кнопку «💳 Купить» ниже:</i>"
+        ),
         "about_text": '👥 О НАС\n\n🎓 TalabaBot — AI помощник студентов:\n рефераты, презентации, таблицы, тесты, перевод и другое.\n\nВопрос или предложение — нажмите "✍️ Написать", администратор ответит.',
         "ask_murojaat": "📮 Напишите ваше обращение. Администратор ответит.",
         "murojaat_sent": "✅ Обращение отправлено администратору. Ответ придёт сюда!",
@@ -226,10 +275,29 @@ LANGS = {
         "admin_denied": "⛔ У вас нет прав администратора.\n\nАдминистратором назначает только владелец.",
         "admin_only": "⛔ Эта команда не работает для вас. Она предназначена только для администраторов!",
         "busy": "⏳ Ваш предыдущий запрос ещё готовится. Отправлю результат, как закончу.",
-        "limit_msg": "📄 Бесплатный дневной лимит ({n} AI-документов) исчерпан. Обновление в 00:00 по Ташкенту. Дополнительные документы доступны в Pro-пакете.",
+        "limit_msg": (
+            "⚠️ <b>Дневной бесплатный лимит исчерпан!</b>\n\n"
+            "Вы использовали все {n} бесплатных AI-запросов на сегодня.\n"
+            "• Бесплатный лимит обновится в <b>00:00</b> по Ташкенту.\n"
+            "• Чтобы продолжить генерацию сейчас, приобретите <b>Pro пакет</b>."
+        ),
         "queue": "⏳ Обрабатываются другие запросы.\nВаше место в очереди: {pos}\nПодождите немного...",
         "premium_buy_btn": "Купить",
-        "pay_manual": "💳 <b>Pro пакет</b>\n\n• 📄 {w} Word-документов\n• 🎤 {s} презентаций\n• 🧩 {q} раз Quiz\n\n💵 Сумма: <b>{amount} сум</b>\n🏦 Карта: <code>{card}</code>\n👤 Владелец: {holder}\n\nПереведите оплату и <b>пришлите чек (скриншот)</b> сюда.\nАдмин проверит и активирует Pro.\n\nПакет без срока действия, до исчерпания квот.",
+        "pay_manual": (
+            "💳 <b>ПОКУПКА PRO ПАКЕТА</b>\n\n"
+            "В пакете:\n"
+            "• 📄 <b>{w}</b> Word-документов\n"
+            "• 🎤 <b>{s}</b> презентаций\n"
+            "• 🧩 <b>{q}</b> тестов/квизов\n"
+            "• ⏳ <b>Бессрочно</b> (лимиты не сгорают)\n\n"
+            "💵 Сумма оплаты: <b>{amount} сум</b>\n"
+            "🏦 Номер карты: <code>{card}</code> <i>(нажмите для копирования)</i>\n"
+            "👤 Владелец карты: <b>{holder}</b>\n\n"
+            "📌 <b>Инструкция по оплате:</b>\n"
+            "1. Скопируйте номер карты и переведите <b>{amount} сум</b>.\n"
+            "2. Отправьте чек (скриншот) об оплате <b>в этот чат</b>.\n"
+            "3. Администратор проверит и активирует ваш Pro пакет!"
+        ),
         "pay_proof_sent": "✅ Чек получен!\n\nОжидается проверка админом (обычно быстро). После подтверждения придёт сообщение.",
         "pay_rejected": "❌ Оплата не подтверждена.\n\nПри вопросах — обратитесь к админу.",
         "pay_ok_admin": "✅ Подтверждено",
@@ -311,7 +379,13 @@ LANGS = {
         "payments_empty": "Нет непроверенных платежей.",
         "support_unavailable": "Не удалось доставить обращение. Попробуйте позже.",
         "album_done": "✅ Изображения ({n}) объединены в один PDF.",
-        "quota_balance": "Остаток: {w} документов/таблиц, {s} презентаций, {q} тестов/квизов.\nБесплатно сегодня: {free}.",
+        "quota_balance": (
+            "📊 <b>Ваш баланс:</b>\n"
+            "• Бесплатно сегодня: <b>{free}</b> (обновление в 00:00)\n"
+            "• Pro Word остаток: <b>{w}</b>\n"
+            "• Pro слайды остаток: <b>{s}</b>\n"
+            "• Pro тесты остаток: <b>{q}</b>"
+        ),
         "quiz_your_answer": "   Ваш ответ: {answer}",
         "quiz_right_answer": "   Верный ответ: {answer}",
     },
@@ -366,7 +440,19 @@ LANGS = {
         "praise_hi": "Great result! 🚀",
         "praise_mid": "Good, keep practicing 💪",
         "praise_lo": "Try again, you'll succeed! 📚",
-        "premium_msg": "⭐ PRO PACKAGE\n\nFree plan: {n} AI documents per day. Pro package gives:\n• 📄 {w} Word documents\n• 🎤 {s} presentations\n• 🧩 {q} times Quiz\n\n💳 Pay by card: press “Buy” → send the receipt → admin confirms.",
+        "premium_msg": (
+            "⭐ <b>PLANS AND LIMITS</b>\n\n"
+            "🆓 <b>Free Plan:</b>\n"
+            "• <b>{n}</b> free AI documents per day (Word, Slides, or Quiz)\n"
+            "• Automatically resets every day at <b>00:00</b> Tashkent time\n\n"
+            "💎 <b>PRO Package:</b>\n"
+            "• 📄 <b>{w}</b> Word documents (essays, reports, coursework)\n"
+            "• 🎤 <b>{s}</b> PowerPoint presentations (slides)\n"
+            "• 🧩 <b>{q}</b> Quiz sets\n"
+            "• ⏳ <b>No expiration</b> — credits never expire!\n"
+            "• 🔄 Daily free {n} documents continue even after Pro credits run out\n\n"
+            "<i>To purchase, click the “💳 Buy” button below:</i>"
+        ),
         "about_text": '👥 ABOUT US\n\n🎓 TalabaBot — AI assistant for students:\n essays, presentations, tables, tests, translation and more.\n\nQuestions or suggestions — press "✍️ Contact", the admin will reply.',
         "ask_murojaat": "📮 Write your message. The administrator will reply.",
         "murojaat_sent": "✅ Your message was sent to the administrator. You'll see the reply here!",
@@ -384,10 +470,29 @@ LANGS = {
         "admin_denied": "⛔ You don't have admin rights.\n\nOnly the owner can appoint admins.",
         "admin_only": "⛔ This command does not work for you. It is only for administrators!",
         "busy": "⏳ Your previous request is still being prepared. I'll send the result when it's done.",
-        "limit_msg": "📄 Today's free limit ({n} AI documents) is exhausted. It resets at 00:00 Tashkent time. A Pro package provides additional documents.",
+        "limit_msg": (
+            "⚠️ <b>Today's free limit is exhausted!</b>\n\n"
+            "You have used all {n} free AI requests for today.\n"
+            "• Daily free quota resets at <b>00:00</b> Tashkent time.\n"
+            "• To generate more documents immediately, you can purchase a <b>Pro package</b>."
+        ),
         "queue": "⏳ Other requests are being processed.\nYour queue position: {pos}\nPlease wait...",
         "premium_buy_btn": "Buy",
-        "pay_manual": "💳 <b>Pro package</b>\n\n• 📄 {w} Word documents\n• 🎤 {s} presentations\n• 🧩 {q} times Quiz\n\n💵 Amount: <b>{amount} UZS</b>\n🏦 Card: <code>{card}</code>\n👤 Holder: {holder}\n\nSend the payment and <b>upload the receipt (screenshot)</b> here.\nThe admin will verify and activate the Pro package.\n\nCredits do not expire; the package lasts until they are used.",
+        "pay_manual": (
+            "💳 <b>PURCHASE PRO PACKAGE</b>\n\n"
+            "Includes:\n"
+            "• 📄 <b>{w}</b> Word documents\n"
+            "• 🎤 <b>{s}</b> Presentations\n"
+            "• 🧩 <b>{q}</b> Tests/quizzes\n"
+            "• ⏳ <b>No expiration</b> (credits never expire)\n\n"
+            "💵 Amount: <b>{amount} UZS</b>\n"
+            "🏦 Card number: <code>{card}</code> <i>(tap to copy)</i>\n"
+            "👤 Card holder: <b>{holder}</b>\n\n"
+            "📌 <b>Payment instructions:</b>\n"
+            "1. Copy the card number and transfer <b>{amount} UZS</b>.\n"
+            "2. Send the payment receipt (screenshot) <b>to this chat</b>.\n"
+            "3. Admin will quickly verify and activate your Pro package!"
+        ),
         "pay_proof_sent": "✅ Receipt received!\n\nWaiting for admin verification (usually quick). You'll be notified once approved.",
         "pay_rejected": "❌ Payment not confirmed.\n\nContact the admin if you have questions.",
         "pay_ok_admin": "✅ Approved",
@@ -469,7 +574,13 @@ LANGS = {
         "payments_empty": "No pending payments.",
         "support_unavailable": "Could not deliver your message. Please try again later.",
         "album_done": "✅ {n} images combined into one PDF.",
-        "quota_balance": "Remaining: {w} documents/tables, {s} presentations, {q} tests/quizzes.\nFree today: {free}. Free quota remains available after Pro credits run out.",
+        "quota_balance": (
+            "📊 <b>Your balance:</b>\n"
+            "• Free today: <b>{free}</b> (resets at 00:00)\n"
+            "• Pro Word remaining: <b>{w}</b>\n"
+            "• Pro Slides remaining: <b>{s}</b>\n"
+            "• Pro Quizzes remaining: <b>{q}</b>"
+        ),
         "quiz_your_answer": "   Your answer: {answer}",
         "quiz_right_answer": "   Correct answer: {answer}",
     },

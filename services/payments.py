@@ -16,8 +16,14 @@ def is_ready() -> bool:
 
 
 def card_info() -> dict:
+    raw = str(config.PAYMENT_AMOUNT).strip()
+    try:
+        clean_num = int(raw.replace(" ", "").replace(",", ""))
+        amount_fmt = f"{clean_num:,}".replace(",", " ")
+    except Exception:
+        amount_fmt = raw
     return {
         "card": config.PAYMENT_CARD,
         "holder": config.PAYMENT_HOLDER,
-        "amount": config.PAYMENT_AMOUNT,
+        "amount": amount_fmt,
     }
