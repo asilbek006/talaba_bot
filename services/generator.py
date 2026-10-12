@@ -91,33 +91,74 @@ def _extract_json(text: str):
         raise
 
 
+def _ask_groq(prompt: str) -> dict | list:
+    if not config.GROQ_API_KEY:
+        raise RuntimeError("Groq API sozlanmagan")
+    import urllib.request
+
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    data = {
+        "model": config.GROQ_MODEL,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a professional assistant for academic document generation. You strictly output valid JSON only.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.4,
+    }
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(data).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {config.GROQ_API_KEY}",
+            "Content-Type": "application/json",
+            "User-Agent": "TalabaBot/1.0",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=config.GEMINI_TIMEOUT) as resp:
+        body = json.loads(resp.read().decode("utf-8"))
+        content = body.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return _extract_json(content)
+
+
 def _ask(prompt: str) -> dict | list:
-    if not client:
-        raise RuntimeError("AI xizmati sozlanmagan")
-    for attempt in range(3):
+    if client:
+        for attempt in range(2):
+            try:
+                resp = client.models.generate_content(
+                    model=GEMINI_MODEL,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.4,
+                        max_output_tokens=24000,
+                    ),
+                )
+                return _extract_json(resp.text or "")
+            except Exception as exc:
+                code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+                log.warning(
+                    "Gemini so'rovi muvaffaqiyatsiz bo'ldi (urinish %s) type=%s code=%s",
+                    attempt,
+                    type(exc).__name__,
+                    code,
+                )
+                if attempt == 0 and code in (408, 429, 500, 502, 503, 504):
+                    time.sleep(1)
+                    continue
+                break
+
+    if config.GROQ_API_KEY:
         try:
-            resp = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json", temperature=0.4, max_output_tokens=24000
-                ),
-            )
-            return _extract_json(resp.text or "")
-        except Exception as exc:
-            code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
-            retryable = (
-                code in (408, 429, 500, 502, 503, 504)
-                or isinstance(exc, (json.JSONDecodeError, TimeoutError, ConnectionError))
-                or "timeout" in type(exc).__name__.lower()
-            )
-            if not retryable or attempt == 2:
-                log.warning("AI request failed type=%s code=%s", type(exc).__name__, code)
-                raise RuntimeError(
-                    "AI xizmati javob bermadi. Keyinroq qayta urinib ko'ring."
-                ) from exc
-            time.sleep(2 ** (attempt + 1))
-    raise RuntimeError("AI xizmati javob bermadi")
+            log.info("Gemini o'rniga Groq API orqali generatsiya qilinmoqda...")
+            return _ask_groq(prompt)
+        except Exception as g_exc:
+            log.warning("Groq fallback ham xato berdi: %s", g_exc)
+
+    raise RuntimeError("AI xizmati javob bermadi. Keyinroq qayta urinib ko'ring.")
 
 
 def _ask_validated(prompt: str, check) -> dict | list:

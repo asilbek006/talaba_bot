@@ -235,3 +235,11 @@ def test_permanent_api_error_is_not_retried(monkeypatch):
         gen._ask("hello")
     assert generate.call_count == 1
     assert "private credential" not in str(err.value)
+
+
+def test_ask_groq_fallback(monkeypatch):
+    monkeypatch.setattr(gen, "client", None)
+    monkeypatch.setattr(gen.config, "GROQ_API_KEY", "fake_key")
+    monkeypatch.setattr(gen, "_ask_groq", lambda prompt: {"title": "Test Title"})
+    res = gen._ask("hello")
+    assert res == {"title": "Test Title"}
