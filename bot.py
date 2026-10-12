@@ -607,9 +607,18 @@ async def cmd_admin(message: Message, bot: Bot):
         await notify_admin(bot, f"🆕 Yangi admin: {uid}")
 
 
+async def check_admin(message: Message) -> bool:
+    if message.from_user.id not in await db.admin_ids():
+        u = await db.get_user(message.from_user.id)
+        lang = u.get("lang", DEFAULT_LANG) if u else DEFAULT_LANG
+        await message.answer(t(lang, "admin_only"))
+        return False
+    return True
+
+
 @router.message(Command("stats"))
 async def cmd_stats(message: Message):
-    if message.from_user.id not in await db.admin_ids():
+    if not await check_admin(message):
         return
     s = await db.stats()
     kinds = await db.stats_kinds()
@@ -673,7 +682,7 @@ async def cmd_stats(message: Message):
 
 @router.message(Command("grant"))
 async def cmd_grant(message: Message, bot: Bot):
-    if message.from_user.id not in await db.admin_ids():
+    if not await check_admin(message):
         return
     parts = (message.text or "").split()
     if (
@@ -704,7 +713,7 @@ async def cmd_grant(message: Message, bot: Bot):
 
 @router.message(Command("broadcast"))
 async def cmd_broadcast(message: Message, bot: Bot):
-    if message.from_user.id not in await db.admin_ids():
+    if not await check_admin(message):
         return
     text = (message.text or "").removeprefix("/broadcast").strip()
     reply = message.reply_to_message
@@ -765,7 +774,7 @@ async def cb_admin_reply_click(call: CallbackQuery, state: FSMContext):
 
 @router.message(Command("reply", "javob"))
 async def cmd_reply(message: Message, state: FSMContext, bot: Bot):
-    if message.from_user.id not in await db.admin_ids():
+    if not await check_admin(message):
         return
     parts = (message.text or "").split(maxsplit=2)
     if len(parts) != 3 or not parts[1].isdigit():
@@ -1002,7 +1011,7 @@ async def on_pay_proof(message: Message, state: FSMContext, bot: Bot):
 
 @router.message(Command("payments"))
 async def cmd_payments(message: Message, bot: Bot):
-    if message.from_user.id not in await db.admin_ids():
+    if not await check_admin(message):
         return
     pending = await db.pending_payments()
     if not pending:

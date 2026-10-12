@@ -152,3 +152,40 @@ def test_registration_generation_and_back_through_dispatcher(tmp_path, monkeypat
         await telegram.session.close()
 
     asyncio.run(scenario())
+
+
+def test_non_admin_stats_and_broadcast(monkeypatch):
+    monkeypatch.setattr(app.db, "get_user", AsyncMock(return_value={"id": 777, "lang": "uz"}))
+    monkeypatch.setattr(app.db, "admin_ids", AsyncMock(return_value=[]))
+    monkeypatch.setattr(app.db, "touch_user", AsyncMock())
+    app.router._parent_router = None
+
+    async def scenario():
+        session = TelegramStub()
+        telegram = Bot("123456:offline-test-token", session=session)
+        storage = MemoryStorage()
+        dp = app.create_dispatcher(storage)
+
+        async def text(value: str):
+            msg = Message(
+                message_id=1,
+                date=datetime.now(timezone.utc),
+                chat=Chat(id=777, type="private"),
+                from_user=User(id=777, is_bot=False, first_name="Student"),
+                text=value,
+            )
+            await dp.feed_update(
+                telegram,
+                Update.model_validate({"update_id": 1, "message": msg.model_dump(mode="json")}),
+            )
+
+        await text("/stats")
+        assert session.calls[-1].text == app.t("uz", "admin_only")
+
+        await text("/broadcast test")
+        assert session.calls[-1].text == app.t("uz", "admin_only")
+
+        await storage.close()
+        await telegram.session.close()
+
+    asyncio.run(scenario())
